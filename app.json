@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Needle-Note",
+    "slug": "Needle-Note",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.needleandnote.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#2B2D6E",
+        "foregroundImage": "./assets/adaptive-icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "backgroundColor": "#2B2D6E"
+        }
+      ],
+      "expo-sqlite",
+      "expo-sharing",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a868b469-dcda-4293-b9c6-582dc1282279"
+      }
+    }
+  }
+}

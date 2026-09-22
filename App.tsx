@@ -8,6 +8,7 @@ import { ScreenHeader } from './components/ui';
 import CustomersScreen from './screens/CustomersScreen';
 import AddCustomerScreen from './screens/AddCustomerScreen';
 import CustomerProfileScreen from './screens/CustomerProfileScreen';
+import TodayScreen from './screens/TodayScreen';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -69,28 +70,36 @@ export default function App() {
     content = (
       <View style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
-          {tab === 'Customers' ? (
-            <CustomersScreen
-              version={version}
-              onOpen={(id) => push({ name: 'customer', id })}
-              onAdd={() => push({ name: 'addCustomer' })}
-            />
-          ) : (
-            <View style={{ flex: 1 }}>
-              <ScreenHeader title={tab} />
-              <View style={styles.center}>
-                <Text style={styles.placeholder}>{tab} Not screen coming next</Text>
-              </View>
-            </View>
-          )}
+{tab === 'Customers' ? (
+  <CustomersScreen
+    version={version}
+    onOpen={(id) => push({ name: 'customer', id })}
+    onAdd={() => push({ name: 'addCustomer' })}
+  />
+) : tab === 'Today' ? (
+  <TodayScreen version={version} onOpenCustomer={(id) => push({ name: 'customer', id })} />
+) : (
+  <View style={{ flex: 1 }}>
+    <ScreenHeader title={tab} />
+    <View style={styles.center}>
+      <Text style={styles.placeholder}>{tab} Not screen coming next</Text>
+    </View>
+  </View>
+)}
         </View>
-        <View style={styles.nav}>
-          {tabs.map((t) => (
-            <Pressable key={t} style={styles.navItem} onPress={() => setTab(t)}>
-              <Text style={[styles.navText, tab === t && styles.navTextOn]}>{t}</Text>
-            </Pressable>
-          ))}
-        </View>
+<View style={styles.nav}>
+  {tabs.map((t) => (
+    <Pressable
+      key={t}
+      // Conditionally add 'navItemOn' to give the active tab a bottom border
+      style={[styles.navItem, tab === t && { borderBottomWidth: 2,paddingBottom: 30, borderBottomColor: colors.indigo }]}
+      onPress={() => setTab(t)}
+    >
+      <Text style={[styles.navText, tab === t && styles.navTextOn]}>{t}</Text>
+    </Pressable>
+  ))}
+</View>
+
       </View>
     );
   }

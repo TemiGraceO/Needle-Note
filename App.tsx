@@ -79,7 +79,7 @@ export default function App() {
             <View style={{ flex: 1 }}>
               <ScreenHeader title={tab} />
               <View style={styles.center}>
-                <Text style={styles.placeholder}>{tab} screen coming next</Text>
+                <Text style={styles.placeholder}>{tab} Not screen coming next</Text>
               </View>
             </View>
           )}

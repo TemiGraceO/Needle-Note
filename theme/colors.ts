@@ -1,5 +1,5 @@
 export const colors = {
-  indigo: '#2B2D6E',
+  indigo: '#4d6cf7',
   saffron: '#E8A93A',
   cream: '#FBF7F0',
   ink: '#1F1B2D',

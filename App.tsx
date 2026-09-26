@@ -1,22 +1,45 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { MaterialIcons } from '@expo/vector-icons';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setupDatabase } from './lib/db';
 import { colors } from './theme/colors';
-import { ScreenHeader } from './components/ui';
+
 import CustomersScreen from './screens/CustomersScreen';
 import AddCustomerScreen from './screens/AddCustomerScreen';
 import CustomerProfileScreen from './screens/CustomerProfileScreen';
 import TodayScreen from './screens/TodayScreen';
+import OrdersScreen from './screens/OrdersScreen';
+import AddOrderScreen from './screens/AddOrderScreen';
+import MoneyScreen from './screens/MoneyScreen';
 
 SplashScreen.preventAutoHideAsync();
 
 type Tab = 'Today' | 'Customers' | 'Orders' | 'Money';
-type Route = { name: 'tabs' } | { name: 'addCustomer' } | { name: 'customer'; id: number };
-const tabs: Tab[] = ['Today', 'Customers', 'Orders', 'Money'];
+type Route =
+  | { name: 'tabs' }
+  | { name: 'addCustomer' }
+  | { name: 'customer'; id: number }
+  | { name: 'addOrder' };
 
-export default function App() {
+interface TabItem {
+  id: Tab;
+  label: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+}
+
+const tabsConfig: TabItem[] = [
+  { id: 'Today', label: 'Today', icon: 'calendar-today' },
+  { id: 'Customers', label: 'Customers', icon: 'people' },
+  { id: 'Orders', label: 'Orders', icon: 'assignment' },
+  { id: 'Money', label: 'Money', icon: 'account-balance-wallet' },
+];
+
+// This is your app content, now inside the Provider
+function AppContent() {
+  const insets = useSafeAreaInsets();
   const [ready, setReady] = useState(false);
   const [tab, setTab] = useState<Tab>('Today');
   const [stack, setStack] = useState<Route[]>([{ name: 'tabs' }]);
@@ -35,7 +58,7 @@ export default function App() {
   }, [ready]);
 
   const push = (r: Route) => setStack((s) => [...s, r]);
-  const pop = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
+  const pop = () => setStack((s) => (s.length > 1? s.slice(0, -1) : s));
   const changed = () => setVersion((v) => v + 1);
 
   useEffect(() => {
@@ -64,42 +87,63 @@ export default function App() {
         }}
       />
     );
+  } else if (route.name === 'addOrder') {
+    content = (
+      <AddOrderScreen
+        onBack={pop}
+        onSaved={() => {
+          changed();
+          pop();
+        }}
+      />
+    );
   } else if (route.name === 'customer') {
     content = <CustomerProfileScreen id={route.id} onBack={pop} onChanged={changed} />;
   } else {
     content = (
       <View style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
-{tab === 'Customers' ? (
-  <CustomersScreen
-    version={version}
-    onOpen={(id) => push({ name: 'customer', id })}
-    onAdd={() => push({ name: 'addCustomer' })}
-  />
-) : tab === 'Today' ? (
-  <TodayScreen version={version} onOpenCustomer={(id) => push({ name: 'customer', id })} />
-) : (
-  <View style={{ flex: 1 }}>
-    <ScreenHeader title={tab} />
-    <View style={styles.center}>
-      <Text style={styles.placeholder}>{tab} Not screen coming next</Text>
-    </View>
-  </View>
-)}
+          {tab === 'Customers'? (
+            <CustomersScreen
+              version={version}
+              onOpen={(id) => push({ name: 'customer', id })}
+              onAdd={() => push({ name: 'addCustomer' })}
+            />
+          ) : tab === 'Today'? (
+            <TodayScreen version={version} onOpenCustomer={(id) => push({ name: 'customer', id })} />
+          ) : tab === 'Orders'? (
+            <OrdersScreen
+              version={version}
+              onAddOrder={() => push({ name: 'addOrder' })}
+            />
+          ) : (
+            <MoneyScreen version={version} />
+          )}
         </View>
-<View style={styles.nav}>
-  {tabs.map((t) => (
-    <Pressable
-      key={t}
-      // Conditionally add 'navItemOn' to give the active tab a bottom border
-      style={[styles.navItem, tab === t && { borderBottomWidth: 2,paddingBottom: 30, borderBottomColor: colors.indigo }]}
-      onPress={() => setTab(t)}
-    >
-      <Text style={[styles.navText, tab === t && styles.navTextOn]}>{t}</Text>
-    </Pressable>
-  ))}
-</View>
 
+        <View style={[styles.navContainer, { paddingBottom: insets.bottom || 20 }]}>
+          <View style={styles.nav}>
+            {tabsConfig.map((t) => {
+              const isActive = tab === t.id;
+              return (
+                <Pressable
+                  key={t.id}
+                  style={[styles.navItem, isActive && styles.navItemOn]}
+                  onPress={() => setTab(t.id)}
+                >
+                  <MaterialIcons
+                    name={t.icon}
+                    size={22}
+                    color={isActive? colors.indigo : colors.muted}
+                  />
+                  <Text style={[styles.navText, isActive && styles.navTextOn]}>
+                    {t.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
       </View>
     );
   }
@@ -112,19 +156,42 @@ export default function App() {
   );
 }
 
+// Root App now provides SafeArea
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  placeholder: { color: colors.muted },
-  nav: {
-    flexDirection: 'row',
+  navContainer: {
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.line,
-    paddingTop: 10,
-    paddingBottom: 24,
   },
-  navItem: { flex: 1, alignItems: 'center', paddingVertical: 8 },
-  navText: { fontSize: 12, color: colors.muted },
-  navTextOn: { color: colors.indigo, fontWeight: '600' },
+  nav: {
+    flexDirection: 'row',
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 3,
+    borderTopColor: 'transparent',
+  },
+  navItemOn: {
+    borderTopColor: colors.indigo,
+  },
+  navText: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 4,
+  },
+  navTextOn: {
+    color: colors.indigo,
+    fontWeight: '600'
+  },
 });

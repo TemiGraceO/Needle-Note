@@ -24,12 +24,12 @@ export default function AddCustomerScreen({ onBack, onSaved }: Props) {
     <View style={{ flex: 1 }}>
       <ScreenHeader title="New customer" onBack={onBack} />
       <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
-        <Field label="Name" value={name} onChangeText={setName} placeholder="Amina Yusuf" />
+        <Field label="Name" value={name} onChangeText={setName} placeholder="Enter customer name" />
         <Field
           label="Phone number"
           value={phone}
           onChangeText={setPhone}
-          placeholder="080 1234 5678"
+          placeholder=""
           keyboardType="phone-pad"
         />
         {error ? <Text style={{ color: colors.coral, marginBottom: 10 }}>{error}</Text> : null}

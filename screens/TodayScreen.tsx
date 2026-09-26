@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
+  Platform
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -60,7 +60,7 @@ function getGreeting(date: Date) {
 
 function getInitials(name: string) {
   return (
-    name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || '?'
+    name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()?? '').join('') || '?'
   );
 }
 
@@ -93,9 +93,8 @@ export default function TodayScreen({
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
+      <View
+        style={[
           styles.content,
           { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 100 },
         ]}
@@ -105,7 +104,7 @@ export default function TodayScreen({
             <Text style={styles.date}>{dateLabel}</Text>
             <Text style={styles.greeting}>{greeting}</Text>
           </View>
-          <Pressable onPress={onOpenNotifications} hitSlop={8} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+          <Pressable onPress={onOpenNotifications} hitSlop={8} style={({ pressed }) => [styles.iconButton, styles.pop, pressed && styles.pressed]}>
             <MaterialIcons name="notifications-none" size={22} color={palette.text} />
             {notificationCount > 0 && <View style={styles.badge} />}
           </Pressable>
@@ -126,10 +125,10 @@ export default function TodayScreen({
             <Text style={styles.sectionTitle}>Today's schedule</Text>
           </View>
 
-          {agenda.length === 0 ? (
+          {agenda.length === 0? (
             <EmptyState onAddOrder={onAddOrder} onViewClients={onViewClients} />
           ) : (
-            <View style={[styles.card, styles.cardClip]}>
+            <View style={[styles.card, styles.cardClip, styles.popStrong]}>
               {agenda.map((item, index) => (
                 <AgendaRow
                   key={item.id}
@@ -141,16 +140,16 @@ export default function TodayScreen({
             </View>
           )}
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
 function QuickAction({ icon, label, onPress, primary = false }: { icon: IconName; label: string; onPress: () => void; primary?: boolean }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
-      <View style={[styles.actionIcon, primary && styles.actionIconPrimary]}>
-        <MaterialIcons name={icon} size={22} color={primary ? palette.white : palette.accent} />
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}>
+      <View style={[styles.actionIcon, styles.pop, primary && styles.actionIconPrimary]}>
+        <MaterialIcons name={icon} size={22} color={primary? palette.white : palette.accent} />
       </View>
       <Text style={styles.actionLabel} numberOfLines={1}>{label}</Text>
     </Pressable>
@@ -161,17 +160,17 @@ function AgendaRow({ item, isLast, onPress }: { item: TodayItem; isLast: boolean
   return (
     <>
       <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-        <View style={styles.avatar}><Text style={styles.avatarText}>{getInitials(item.customerName)}</Text></View>
+        <View style={[styles.avatar, styles.popLight]}><Text style={styles.avatarText}>{getInitials(item.customerName)}</Text></View>
         <View style={styles.rowBody}>
           <Text style={styles.rowTitle} numberOfLines={1}>{item.customerName}</Text>
-          {item.detail ? (
+          {item.detail? (
             <View style={styles.rowMetaWrap}>
               <View style={[styles.dot, { backgroundColor: palette.gold }]} />
               <Text style={styles.rowMeta} numberOfLines={1}>{item.detail}</Text>
             </View>
           ) : null}
         </View>
-        {item.time ? <Text style={styles.rowTime}>{item.time}</Text> : null}
+        {item.time? <Text style={styles.rowTime}>{item.time}</Text> : null}
         <MaterialIcons name="chevron-right" size={20} color={palette.textSubtle} />
       </Pressable>
       {!isLast && <View style={styles.rowDivider} />}
@@ -181,11 +180,11 @@ function AgendaRow({ item, isLast, onPress }: { item: TodayItem; isLast: boolean
 
 function EmptyState({ onAddOrder, onViewClients }: { onAddOrder: () => void; onViewClients: () => void }) {
   return (
-    <View style={[styles.card, styles.empty]}>
-      <View style={styles.emptyIcon}><MaterialIcons name="event-available" size={28} color={palette.sage} /></View>
+    <View style={[styles.card, styles.empty, styles.popStrong]}>
+      <View style={[styles.emptyIcon, styles.popLight]}><MaterialIcons name="event-available" size={28} color={palette.sage} /></View>
       <Text style={styles.emptyTitle}>You're all caught up</Text>
       <Text style={styles.emptyText}>No fittings, pickups or collections today. New appointments will show up here.</Text>
-      <Pressable onPress={onAddOrder} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
+      <Pressable onPress={onAddOrder} style={({ pressed }) => [styles.primaryButton, styles.pop, pressed && styles.pressed]}>
         <MaterialIcons name="add" size={20} color={palette.white} />
         <Text style={styles.primaryButtonText}>New order</Text>
       </Pressable>
@@ -198,8 +197,30 @@ function EmptyState({ onAddOrder, onViewClients }: { onAddOrder: () => void; onV
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: palette.background },
-  content: { paddingHorizontal: 20 },
-  pressed: { opacity: 0.7 },
+  content: { flex: 1, paddingHorizontal: 20 },
+  pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
+  actionPressed: { opacity: 0.9, transform: [{ scale: 0.96 }] },
+
+  // POP EFFECTS
+  popLight: {
+   ...Platform.select({
+      ios: { shadowColor: '#1C1B19', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+      android: { elevation: 2 },
+    }),
+  },
+  pop: {
+   ...Platform.select({
+      ios: { shadowColor: '#1C1B19', shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+      android: { elevation: 3 },
+    }),
+  },
+  popStrong: {
+   ...Platform.select({
+      ios: { shadowColor: '#1C1B19', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
+      android: { elevation: 5 },
+    }),
+  },
+
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
   headerText: { flex: 1, paddingRight: 16 },
   date: { fontSize: 13, fontWeight: '500', color: palette.textMuted },

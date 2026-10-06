@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text as RNText, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { MaterialIcons } from '@expo/vector-icons';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from '@expo-google-fonts/poppins';
 import { setupDatabase } from './lib/db';
 import { colors } from './theme/colors';
 
+// Imports for active features screens
 import CustomersScreen from './screens/CustomersScreen';
 import AddCustomerScreen from './screens/AddCustomerScreen';
 import CustomerProfileScreen from './screens/CustomerProfileScreen';
@@ -16,6 +24,37 @@ import AddOrderScreen from './screens/AddOrderScreen';
 import MoneyScreen from './screens/MoneyScreen';
 
 SplashScreen.preventAutoHideAsync();
+
+// --- GLOBAL FONT OVERRIDE ---
+// Maps the numeric/keyword fontWeight already used across the app's
+// StyleSheets to the matching Poppins font file, then patches every
+// <Text> to render with that family instead of the system font.
+// This only needs to run once, at module scope.
+const poppinsWeightMap: Record<string, string> = {
+  '400': 'Poppins_400Regular',
+  normal: 'Poppins_400Regular',
+  '500': 'Poppins_500Medium',
+  '600': 'Poppins_600SemiBold',
+  '700': 'Poppins_700Bold',
+  bold: 'Poppins_700Bold',
+};
+
+let fontPatchApplied = false;
+function applyGlobalFontPatch() {
+  if (fontPatchApplied) return;
+  fontPatchApplied = true;
+
+  const originalRender = (RNText as any).render;
+  (RNText as any).render = function (...args: any[]) {
+    const origin = originalRender.apply(this, args);
+    const flatStyle = StyleSheet.flatten(origin.props.style) || {};
+    const weightKey = String(flatStyle.fontWeight ?? '400');
+    const fontFamily = poppinsWeightMap[weightKey] ?? 'Poppins_400Regular';
+    return React.cloneElement(origin, {
+      style: [{ fontFamily }, origin.props.style],
+    });
+  };
+}
 
 type Tab = 'Today' | 'Customers' | 'Orders' | 'Money';
 type Route =
@@ -37,28 +76,41 @@ const tabsConfig: TabItem[] = [
   { id: 'Money', label: 'Money', icon: 'account-balance-wallet' },
 ];
 
-// This is your app content, now inside the Provider
 function AppContent() {
-  const insets = useSafeAreaInsets();
-  const [ready, setReady] = useState(false);
+  const [dbReady, setDbReady] = useState(false);
   const [tab, setTab] = useState<Tab>('Today');
   const [stack, setStack] = useState<Route[]>([{ name: 'tabs' }]);
   const [version, setVersion] = useState(0);
 
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) applyGlobalFontPatch();
+  }, [fontsLoaded]);
+
   useEffect(() => {
     try {
       setupDatabase();
+    } catch (err) {
+      console.error('Failed to set up database:', err);
     } finally {
-      setReady(true);
+      setDbReady(true);
     }
   }, []);
+
+  const ready = dbReady && fontsLoaded;
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
   const push = (r: Route) => setStack((s) => [...s, r]);
-  const pop = () => setStack((s) => (s.length > 1? s.slice(0, -1) : s));
+  const pop = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
   const changed = () => setVersion((v) => v + 1);
 
   useEffect(() => {
@@ -77,6 +129,7 @@ function AppContent() {
   const route = stack[stack.length - 1];
   let content;
 
+  // --- STACK ROUTING ENGINE ---
   if (route.name === 'addCustomer') {
     content = (
       <AddCustomerScreen
@@ -100,18 +153,19 @@ function AppContent() {
   } else if (route.name === 'customer') {
     content = <CustomerProfileScreen id={route.id} onBack={pop} onChanged={changed} />;
   } else {
+    // --- BOTTOM BAR TABS SCREENS MANIFEST ---
     content = (
       <View style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
-          {tab === 'Customers'? (
+          {tab === 'Customers' ? (
             <CustomersScreen
               version={version}
               onOpen={(id) => push({ name: 'customer', id })}
               onAdd={() => push({ name: 'addCustomer' })}
             />
-          ) : tab === 'Today'? (
+          ) : tab === 'Today' ? (
             <TodayScreen version={version} onOpenCustomer={(id) => push({ name: 'customer', id })} />
-          ) : tab === 'Orders'? (
+          ) : tab === 'Orders' ? (
             <OrdersScreen
               version={version}
               onAddOrder={() => push({ name: 'addOrder' })}
@@ -121,7 +175,8 @@ function AppContent() {
           )}
         </View>
 
-        <View style={[styles.navContainer, { paddingBottom: insets.bottom || 20 }]}>
+        {/* BOTTOM NAV BAR INTERFACE */}
+        <View style={styles.navContainer}>
           <View style={styles.nav}>
             {tabsConfig.map((t) => {
               const isActive = tab === t.id;
@@ -134,7 +189,7 @@ function AppContent() {
                   <MaterialIcons
                     name={t.icon}
                     size={22}
-                    color={isActive? colors.indigo : colors.muted}
+                    color={isActive ? colors.indigo : colors.muted}
                   />
                   <Text style={[styles.navText, isActive && styles.navTextOn]}>
                     {t.label}
@@ -156,7 +211,6 @@ function AppContent() {
   );
 }
 
-// Root App now provides SafeArea
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -171,6 +225,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.line,
+    paddingBottom: 20,
   },
   nav: {
     flexDirection: 'row',
@@ -192,6 +247,6 @@ const styles = StyleSheet.create({
   },
   navTextOn: {
     color: colors.indigo,
-    fontWeight: '600'
+    fontWeight: '600',
   },
 });

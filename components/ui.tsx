@@ -1,6 +1,7 @@
-import { ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 import {
   Pressable,
+  Platform,
   StatusBar as RNStatusBar,
   StyleSheet,
   Text,
@@ -8,6 +9,7 @@ import {
   TextInputProps,
   View,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 export function initials(name: string) {
@@ -47,7 +49,11 @@ export function PrimaryButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.button, disabled && { opacity: 0.5 }]}
+      style={({ pressed }) => [
+        styles.button,
+        disabled && { opacity: 0.5 },
+        pressed && !disabled && { opacity: 0.8, transform: [{ scale: 0.98 }] }
+      ]}
     >
       <Text style={styles.buttonText}>{label}</Text>
     </Pressable>
@@ -58,7 +64,11 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor={colors.muted} {...props} style={[styles.input, props.style]} />
+      <TextInput 
+        placeholderTextColor={colors.muted} 
+        {...props} 
+        style={[styles.input, props.style]} 
+      />
     </View>
   );
 }
@@ -72,12 +82,15 @@ export function ScreenHeader({
   onBack?: () => void;
   right?: ReactNode;
 }) {
+  // Safe status height padding calculations
+  const headerPaddingTop = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 0) + 12 : 16;
+
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
       <View style={styles.headerLeft}>
         {onBack ? (
-          <Pressable onPress={onBack} hitSlop={12} style={{ marginRight: 12 }}>
-            <Text style={styles.back}>‹ Back</Text>
+          <Pressable onPress={onBack} hitSlop={12} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color={colors.indigo} />
           </Pressable>
         ) : null}
         <Text style={styles.title}>{title}</Text>
@@ -90,32 +103,58 @@ export function ScreenHeader({
 const styles = StyleSheet.create({
   button: {
     backgroundColor: colors.indigo,
-    borderRadius: 10,
-    paddingVertical: 13,
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonText: { color: colors.cream, fontSize: 15, fontWeight: '600' },
-  field: { marginBottom: 14 },
-  label: { fontSize: 12, color: colors.muted, marginBottom: 4 },
+  buttonText: { 
+    color: colors.white, 
+    fontSize: 15, 
+    fontWeight: '600' 
+  },
+  field: { 
+    marginBottom: 16 
+  },
+  label: { 
+    fontSize: 13, 
+    fontWeight: '500', 
+    color: colors.muted, 
+    marginBottom: 6 
+  },
   input: {
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 15,
     color: colors.ink,
   },
   header: {
-    paddingTop: (RNStatusBar.currentHeight ?? 44) + 12,
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingBottom: 14,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: '600', color: colors.indigo },
-  back: { fontSize: 15, color: colors.indigo },
+  headerLeft: { 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
+  title: { 
+    fontSize: 20, 
+    fontWeight: '700', 
+    color: colors.ink,
+    letterSpacing: -0.4
+  },
+  backButton: { 
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

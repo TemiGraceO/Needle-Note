@@ -1,177 +1,250 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text, Pressable, Platform, Animated, Dimensions, Easing } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Platform, ScrollView, Dimensions, Animated } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 // --- THEME & CORES ---
 import { colors } from './theme/colors';
 
-// --- SCREENS ---
+// --- MAIN SWIPE TABS ---
 import TodayScreen from './screens/TodayScreen';
+import CustomersScreen from './screens/CustomersScreen';
 import OrdersScreen from './screens/OrdersScreen';
-import AddOrderScreen from './screens/AddOrderScreen';
 import MoneyScreen from './screens/MoneyScreen';
+
+// --- SLIDE-UP OVERLAYS ---
+import AddOrderScreen from './screens/AddOrderScreen';
 import AddCustomerScreen from './screens/AddCustomerScreen';
 import CustomerProfileScreen from './screens/CustomerProfileScreen';
 
-type ScreenState = 'today' | 'orders' | 'add_order' | 'money' | 'add_customer' | 'customer_profile';
+type MainTab = 'today' | 'customers' | 'orders' | 'money';
+type NestedScreen = 'add_customer' | 'add_order' | 'customer_profile';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const INDICATOR_WIDTH = SCREEN_WIDTH / 4; 
 
-const SCREEN_HIERARCHY: Record<ScreenState, number> = {
-  today: 0,
-  add_customer: 1,
-  customer_profile: 1,
-  orders: 2,
-  add_order: 2,
-  money: 3,
-};
-
-function AppContent() {
-  const [currentScreen, setCurrentScreen] = useState<ScreenState>('today');
-  const [nextScreen, setNextScreen] = useState<ScreenState | null>(null);
+export default function App() {
+  const [activeTab, setActiveTab] = useState<MainTab>('today');
+  const [nestedScreen, setNestedScreen] = useState<NestedScreen | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [refreshVersion, setRefreshVersion] = useState<number>(1);
-  const [isForwardNav, setIsForwardNav] = useState<boolean>(true);
 
-  const slideAnim = React.useRef(new Animated.Value(SCREEN_WIDTH)).current;
-  const currentSlideAnim = React.useRef(new Animated.Value(0)).current;
-
-  const transitionTo = (targetScreen: ScreenState, customerId: number | null = null) => {
-    if (targetScreen === currentScreen) return;
-
-    const currentWeight = SCREEN_HIERARCHY[currentScreen];
-    const targetWeight = SCREEN_HIERARCHY[targetScreen];
-    const isForward = targetWeight >= currentWeight;
-    setIsForwardNav(isForward);
-
-    const nextStartPos = isForward ? SCREEN_WIDTH : -SCREEN_WIDTH;
-    const currentEndPos = isForward ? -SCREEN_WIDTH * 0.3 : SCREEN_WIDTH * 0.3;
-
-    slideAnim.setValue(nextStartPos);
-    currentSlideAnim.setValue(0);
-    
-    setNextScreen(targetScreen);
-    if (customerId !== null) setSelectedCustomerId(customerId);
-
-    // Runs a perfectly linear timing loop for smooth, constant-speed movement
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 220, // Snappy constant speed
-        easing: Easing.linear, // FIXED: Absolute constant movement speed
-        useNativeDriver: true,
-      }),
-      Animated.timing(currentSlideAnim, {
-        toValue: currentEndPos,
-        duration: 220,
-        easing: Easing.linear, // FIXED: Absolute constant movement speed
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setCurrentScreen(targetScreen);
-      setNextScreen(null);
-      currentSlideAnim.setValue(0);
-    });
-  };
+  const scrollRef = useRef<ScrollView>(null);
+  
+  // Continuously maps the exact horizontal swipe coordinates to drive sub-pixel nav updates
+  const scrollX = useRef(new Animated.Value(0)).current;
+  
+  // Controls the vertical translation entry animation for full-page sheets
+  const verticalAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   const triggerDataRefresh = () => {
     setRefreshVersion((prev) => prev + 1);
   };
 
-  const renderScreenContent = (screen: ScreenState) => {
-    switch (screen) {
-      case 'today':
-        return (
-          <TodayScreen
-            version={refreshVersion}
-            onOpenCustomer={(id) => transitionTo('customer_profile', id)}
-            onAddOrder={() => transitionTo('add_order')}
-            onAddClient={() => transitionTo('add_customer')}
-            onViewClients={() => transitionTo('orders')}
-          />
-        );
-      case 'orders':
-        return <OrdersScreen version={refreshVersion} onAddOrder={() => transitionTo('add_order')} />;
-      case 'add_order':
-        return <AddOrderScreen onBack={() => transitionTo('orders')} onSaved={() => { triggerDataRefresh(); transitionTo('orders'); }} />;
-      case 'add_customer':
-        return <AddCustomerScreen onBack={() => transitionTo('today')} onSaved={(id) => { triggerDataRefresh(); transitionTo('customer_profile', id); }} />;
-      case 'customer_profile':
-        return selectedCustomerId !== null ? <CustomerProfileScreen id={selectedCustomerId} onBack={() => transitionTo('today')} onChanged={triggerDataRefresh} /> : null;
-      case 'money':
-        return <MoneyScreen version={refreshVersion} />;
-      default:
-        return null;
+  const tabToPosition = (tab: MainTab): number => {
+    switch (tab) {
+      case 'today': return 0;
+      case 'customers': return SCREEN_WIDTH;
+      case 'orders': return SCREEN_WIDTH * 2;
+      case 'money': return SCREEN_WIDTH * 3;
     }
   };
 
-  const activeTabHighlight = nextScreen ?? currentScreen;
+  const handleTabPress = (tab: MainTab) => {
+    setActiveTab(tab);
+    scrollRef.current?.scrollTo({
+      x: tabToPosition(tab),
+      animated: true,
+    });
+  };
+
+  const handleScrollUpdate = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const computedIndex = Math.round(offsetX / SCREEN_WIDTH);
+    const tabKeys: MainTab[] = ['today', 'customers', 'orders', 'money'];
+    const targetedTab = tabKeys[computedIndex];
+    
+    if (targetedTab && activeTab !== targetedTab) {
+      setActiveTab(targetedTab);
+    }
+  };
+
+  // Triggers professional slide-up native overlay sheet execution
+  const openNestedScreen = (screenType: NestedScreen, customerId: number | null = null) => {
+    if (customerId !== null) setSelectedCustomerId(customerId);
+    setNestedScreen(screenType);
+    
+    verticalAnim.setValue(SCREEN_HEIGHT);
+    Animated.timing(verticalAnim, {
+      toValue: 0,
+      duration: 260,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Triggers slide-down exit animation
+  const closeNestedScreen = () => {
+    Animated.timing(verticalAnim, {
+      toValue: SCREEN_HEIGHT,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      setNestedScreen(null);
+    });
+  };
+
+  const navigateToCustomerProfile = (id: number) => {
+    openNestedScreen('customer_profile', id);
+  };
+
+  // Computes running active bottom indicator position based on scrolling percentage
+  const indicatorTranslateX = scrollX.interpolate({
+    inputRange: [0, SCREEN_WIDTH * 3],
+    outputRange: [0, INDICATOR_WIDTH],
+    extrapolate: 'clamp',
+  });
+
+  // Cross-fades tab item color values concurrently with your finger gestures
+  const getTabColor = (index: number) => {
+    return scrollX.interpolate({
+      inputRange: [
+        (index - 1) * SCREEN_WIDTH,
+        index * SCREEN_WIDTH,
+        (index + 1) * SCREEN_WIDTH
+      ],
+      outputRange: [colors.muted, colors.indigo, colors.muted],
+      extrapolate: 'clamp',
+    });
+  };
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
 
-      <View style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: currentSlideAnim }] }]}>
-          {renderScreenContent(currentScreen)}
-        </Animated.View>
-
-        {nextScreen && (
-          <Animated.View 
-            style={[
-              StyleSheet.absoluteFill, 
-              { 
-                transform: [{ translateX: slideAnim }], 
-                backgroundColor: colors.cream,
-                shadowColor: '#000',
-                shadowOffset: { width: isForwardNav ? -2 : 2, height: 0 },
-                shadowOpacity: 0.05,
-                shadowRadius: 6,
-                elevation: 4
-              }
-            ]}
-          >
-            {renderScreenContent(nextScreen)}
-          </Animated.View>
+      {/* --- HARDWARE ACCELERATED HORIZONTAL TAB SWIPER FRAMEWORK --- */}
+      <Animated.ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+          { useNativeDriver: false, listener: handleScrollUpdate }
         )}
+        scrollEventThrottle={16}
+        style={styles.viewPortContainer}
+      >
+        {/* TAB PAGE 0: DASHBOARD */}
+        <View style={styles.swipePageWrapper}>
+          <TodayScreen
+            version={refreshVersion}
+            onOpenCustomer={navigateToCustomerProfile}
+            onAddOrder={() => openNestedScreen('add_order')}
+            onAddClient={() => openNestedScreen('add_customer')}
+            onViewClients={() => handleTabPress('customers')}
+          />
+        </View>
+
+        {/* TAB PAGE 1: SEARCHABLE CUSTOMER LEDGER LIST */}
+        <View style={styles.swipePageWrapper}>
+          <CustomersScreen
+            version={refreshVersion}
+            onOpenCustomer={navigateToCustomerProfile}
+            onAddClient={() => openNestedScreen('add_customer')}
+          />
+        </View>
+
+        {/* TAB PAGE 2: ACTIVE ORDERS FEED */}
+        <View style={styles.swipePageWrapper}>
+          <OrdersScreen
+            version={refreshVersion}
+            onAddOrder={() => openNestedScreen('add_order')}
+          />
+        </View>
+
+        {/* TAB PAGE 3: STUDIO REVENUE FINANCIALS */}
+        <View style={styles.swipePageWrapper}>
+          <MoneyScreen version={refreshVersion} />
+        </View>
+      </Animated.ScrollView>
+
+      {/* --- DYNAMIC BOUTIQUE BOTTOM TAB BAR TRACKER CONTROLS --- */}
+      <View style={styles.navBar}>
+        {/* Adaptive sub-pixel moving highlight indicator bar */}
+        <Animated.View 
+          style={[
+            styles.movingIndicatorLine, 
+            { width: INDICATOR_WIDTH * 0.7, transform: [{ translateX: indicatorTranslateX }] }
+          ]} 
+        />
+        
+        {/* TODAY TAB BUTTON */}
+        <Pressable style={styles.navItem} onPress={() => handleTabPress('today')}>
+          <MaterialIcons name="calendar-today" size={22} color={activeTab === 'today' ? colors.indigo : colors.muted} />
+          <Animated.Text style={[styles.navText, { color: getTabColor(0) }]}>Today</Animated.Text>
+        </Pressable>
+
+        {/* CUSTOMERS TAB BUTTON */}
+        <Pressable style={styles.navItem} onPress={() => handleTabPress('customers')}>
+          <MaterialIcons name="people-outline" size={24} color={activeTab === 'customers' ? colors.indigo : colors.muted} />
+          <Animated.Text style={[styles.navText, { color: getTabColor(1) }]}>Customers</Animated.Text>
+        </Pressable>
+
+        {/* ORDERS TAB BUTTON */}
+        <Pressable style={styles.navItem} onPress={() => handleTabPress('orders')}>
+          <MaterialIcons name="assignment" size={22} color={activeTab === 'orders' ? colors.indigo : colors.muted} />
+          <Animated.Text style={[styles.navText, { color: getTabColor(2) }]}>Orders</Animated.Text>
+        </Pressable>
+
+        {/* MONEY TAB BUTTON */}
+        <Pressable style={styles.navItem} onPress={() => handleTabPress('money')}>
+          <MaterialIcons name="account-balance-wallet" size={22} color={activeTab === 'money' ? colors.indigo : colors.muted} />
+          <Animated.Text style={[styles.navText, { color: getTabColor(3) }]}>Money</Animated.Text>
+        </Pressable>
       </View>
 
-      {['today', 'orders', 'money', 'add_customer', 'customer_profile'].includes(currentScreen) && (
-        <View style={styles.navBar}>
-          
-          <Pressable style={styles.navItem} onPress={() => transitionTo('today')}>
-            <View style={[styles.topIndicator, activeTabHighlight === 'today' && styles.topIndicatorActive]} />
-            <MaterialIcons name="calendar-today" size={22} color={activeTabHighlight === 'today' ? colors.indigo : colors.muted} />
-            <Text style={[styles.navText, activeTabHighlight === 'today' && styles.navTextActive]}>Today</Text>
-          </Pressable>
+      {/* --- FULL PAGE TRANSITION SHEET OVERLAY LAYERS --- */}
+      {nestedScreen !== null && (
+        <Animated.View 
+          style={[
+            StyleSheet.absoluteFill, 
+            { transform: [{ translateY: verticalAnim }], backgroundColor: colors.cream }
+          ]}
+        >
+          {nestedScreen === 'add_customer' && (
+            <AddCustomerScreen
+              onBack={closeNestedScreen}
+              onSaved={(id) => {
+                triggerDataRefresh();
+                closeNestedScreen();
+                navigateToCustomerProfile(id);
+              }}
+            />
+          )}
 
-          <Pressable style={styles.navItem} onPress={() => transitionTo('add_customer')}>
-            <View style={[styles.topIndicator, (activeTabHighlight === 'add_customer' || activeTabHighlight === 'customer_profile') && styles.topIndicatorActive]} />
-            <MaterialIcons name="people-outline" size={24} color={(activeTabHighlight === 'add_customer' || activeTabHighlight === 'customer_profile') ? colors.indigo : colors.muted} />
-            <Text style={[styles.navText, (activeTabHighlight === 'add_customer' || activeTabHighlight === 'customer_profile') && styles.navTextActive]}>Customers</Text>
-          </Pressable>
+          {nestedScreen === 'add_order' && (
+            <AddOrderScreen
+              onBack={closeNestedScreen}
+              onSaved={() => {
+                triggerDataRefresh();
+                closeNestedScreen();
+                handleTabPress('orders');
+              }}
+            />
+          )}
 
-          <Pressable style={styles.navItem} onPress={() => transitionTo('orders')}>
-            <View style={[styles.topIndicator, (activeTabHighlight === 'orders' || activeTabHighlight === 'add_order') && styles.topIndicatorActive]} />
-            <MaterialIcons name="assignment" size={22} color={(activeTabHighlight === 'orders' || activeTabHighlight === 'add_order') ? colors.indigo : colors.muted} />
-            <Text style={[styles.navText, (activeTabHighlight === 'orders' || activeTabHighlight === 'add_order') && styles.navTextActive]}>Orders</Text>
-          </Pressable>
-
-          <Pressable style={styles.navItem} onPress={() => transitionTo('money')}>
-            <View style={[styles.topIndicator, activeTabHighlight === 'money' && styles.topIndicatorActive]} />
-            <MaterialIcons name="account-balance-wallet" size={22} color={activeTabHighlight === 'money' ? colors.indigo : colors.muted} />
-            <Text style={[styles.navText, activeTabHighlight === 'money' && styles.navTextActive]}>Money</Text>
-          </Pressable>
-
-        </View>
+          {nestedScreen === 'customer_profile' && selectedCustomerId !== null && (
+            <CustomerProfileScreen
+              id={selectedCustomerId}
+              onBack={closeNestedScreen}
+              onChanged={triggerDataRefresh}
+            />
+          )}
+        </Animated.View>
       )}
     </View>
   );
-}
-
-export default function App() {
-  return <AppContent />;
 }
 
 const styles = StyleSheet.create({
@@ -179,12 +252,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  viewPortContainer: {
+    flex: 1,
+  },
+  swipePageWrapper: {
+    width: SCREEN_WIDTH,
+    height: '100%',
+  },
   navBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: Platform.OS === 'android' ? 104 : 84, 
+    height: Platform.OS === 'android' ? 104 : 84,
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.line,
@@ -198,27 +278,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    position: 'relative',
   },
-  topIndicator: {
+  movingIndicatorLine: {
     position: 'absolute',
     top: 0,
-    left: '15%',
-    right: '15%',
+    left: (INDICATOR_WIDTH * 0.3) / 2, 
     height: 3,
-    backgroundColor: 'transparent',
-  },
-  topIndicatorActive: {
     backgroundColor: colors.indigo,
+    borderRadius: 2,
   },
   navText: {
     fontSize: 11,
-    fontWeight: '500',
-    color: colors.muted,
-    marginTop: 2,
-  },
-  navTextActive: {
-    color: colors.indigo,
     fontWeight: '600',
+    marginTop: 2,
   },
 });

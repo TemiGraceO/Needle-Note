@@ -124,25 +124,10 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
     backgroundColor: colors.white,
   },
-  backBtn: {
-    width: 32,
-    alignItems: 'flex-start',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.indigo,
-  },
-  form: {
-    padding: 20,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.muted,
-    marginBottom: 6,
-    marginTop: 16,
-  },
+  backBtn: { width: 32, alignItems: 'flex-start' },
+  title: { fontSize: 18, fontWeight: '600', color: colors.indigo },
+  form: { padding: 20 },
+  label: { fontSize: 13, fontWeight: '500', color: colors.muted, marginBottom: 6, marginTop: 16 },
   input: {
     backgroundColor: colors.white,
     borderWidth: 1,
@@ -153,9 +138,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#222',
   },
-  multiline: {
-    minHeight: 100,
-  },
+  multiline: { minHeight: 100 },
   saveBtn: {
     backgroundColor: colors.indigo,
     borderRadius: 12,
@@ -163,12 +146,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 28,
   },
-  saveBtnDisabled: {
-    opacity: 0.6,
-  },
-  saveText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  saveBtnDisabled: { opacity: 0.6 },
+  saveText: { color: colors.white, fontSize: 16, fontWeight: '600' },
 });

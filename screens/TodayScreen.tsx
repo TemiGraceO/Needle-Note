@@ -8,6 +8,8 @@ import {
   StatusBar as RNStatusBar
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+
+// --- THEME ---
 import { colors } from '../theme/colors';
 
 const palette = {
@@ -77,7 +79,6 @@ export default function TodayScreen({
   notificationCount = 0,
 }: TodayScreenProps) {
   
-  // SAFE PURE-JAVASCRIPT FALLBACK FOR INSETS
   const paddingTop = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 0) + 12 : 54;
   const paddingBottom = Platform.OS === 'ios' ? 134 : 110;
 
@@ -98,17 +99,46 @@ export default function TodayScreen({
   return (
     <View style={styles.container}>
       <View style={[styles.content, { paddingTop, paddingBottom }]}>
+        
+        {/* --- HEADER BLOCK --- */}
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={styles.date}>{dateLabel}</Text>
             <Text style={styles.greeting}>{greeting}</Text>
           </View>
+          
           <Pressable onPress={onOpenNotifications} hitSlop={8} style={({ pressed }) => [styles.iconButton, styles.pop, pressed && styles.pressed]}>
             <MaterialIcons name="notifications-none" size={22} color={palette.text} />
             {notificationCount > 0 && <View style={styles.badge} />}
           </Pressable>
         </View>
 
+        {/* --- MINIMALIST, TRANSPARENT WORKSHOP METRICS ROW --- */}
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryText}>
+              <Text style={styles.summaryNumber}>0</Text> fittings
+            </Text>
+          </View>
+          
+          <View style={styles.summaryVerticalDivider} />
+          
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryText}>
+              <Text style={styles.summaryNumber}>0</Text> to cut
+            </Text>
+          </View>
+          
+          <View style={styles.summaryVerticalDivider} />
+          
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryText}>
+              <Text style={styles.summaryNumber}>0</Text> pickups
+            </Text>
+          </View>
+        </View>
+
+        {/* --- QUICK ACTION CENTER --- */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>Quick actions</Text>
           <View style={styles.actions}>
@@ -119,6 +149,7 @@ export default function TodayScreen({
           </View>
         </View>
 
+        {/* --- AGENDA SCHEDULE QUEUE --- */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Today's schedule</Text>
@@ -219,34 +250,62 @@ const styles = StyleSheet.create({
     }),
   },
 
-  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
+  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
   headerText: { flex: 1, paddingRight: 16 },
   date: { fontSize: 13, fontWeight: '500', color: palette.textMuted },
   greeting: { fontSize: 28, fontWeight: '700', color: palette.text, letterSpacing: -0.5, marginTop: 4 },
+  
+  // REFINED TRANSPARENT METRICS BAR STYLING
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent', // Fixed: Completely transparent
+    marginTop: 4,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: palette.textMuted,
+  },
+  summaryNumber: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.indigo, // Gives a clean contrast color highlight to the numeric status value
+  },
+  summaryVerticalDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: colors.line,
+  },
+
   iconButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: palette.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: 12, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: palette.danger },
-  
-  section: { marginTop: 24 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: palette.text, letterSpacing: -0.2 },
-  sectionTitleSpacing: { marginBottom: 12 },
-
-  actions: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  action: { flex: 1, alignItems: 'center' },
-  actionIcon: { width: 54, height: 54, borderRadius: 16, backgroundColor: palette.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  actionIconPrimary: { backgroundColor: palette.accent, borderColor: palette.accent },
-  actionLabel: { fontSize: 12, fontWeight: '500', color: palette.text },
-
-  card: { backgroundColor: palette.surface, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, padding: 16 },
-  cardClip: { padding: 0, overflow: 'hidden' },
-  
-  row: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: palette.surface },
-  rowPressed: { backgroundColor: palette.pressed },
-  avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: palette.background, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  avatarText: { fontSize: 14, fontWeight: '600', color: palette.text },
-  rowBody: { flex: 1, marginRight: 8 },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: palette.text },
-  rowMetaWrap: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 },
+badge: { position: 'absolute', top: 12, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: palette.danger },
+section: { marginTop: 20 },
+sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+sectionTitle: { fontSize: 16, fontWeight: '700', color: palette.text, letterSpacing: -0.2 },
+sectionTitleSpacing: { marginBottom: 12 },
+actions: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+action: { flex: 1, alignItems: 'center' },
+actionIcon: { width: 54, height: 54, borderRadius: 16, backgroundColor: palette.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+actionIconPrimary: { backgroundColor: palette.accent, borderColor: palette.accent },
+actionLabel: { fontSize: 12, fontWeight: '500', color: palette.text },
+card: { backgroundColor: palette.surface, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, padding: 16 },
+cardClip: { padding: 0, overflow: 'hidden' },
+row: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: palette.surface },
+rowPressed: { backgroundColor: palette.pressed },
+avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: palette.background, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+avatarText: { fontSize: 14, fontWeight: '600', color: palette.text },
+rowBody: { flex: 1, marginRight: 8 },
+rowTitle: { fontSize: 15, fontWeight: '600', color: palette.text },
+rowMetaWrap: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 },
 dot: { width: 6, height: 6, borderRadius: 3 },
 rowMeta: { fontSize: 12, color: palette.textMuted },
 rowTime: { fontSize: 12, color: palette.textSubtle, marginRight: 4, fontWeight: '500' },

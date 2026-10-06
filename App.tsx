@@ -1,156 +1,225 @@
 import React, { useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
-import { db } from './lib/db'; // ADJUST: use whatever lib/db actually exports
+import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
+
+
+// --- THEME & CORES ---
 import { colors } from './theme/colors';
 
-type Props = {
-  onBack: () => void;
-  onSaved: (id: number) => void;
-};
+// --- SCREENS ---
+import TodayScreen from './screens/TodayScreen';
+import OrdersScreen from './screens/OrdersScreen';
+import AddOrderScreen from './screens/AddOrderScreen';
+import MoneyScreen from './screens/MoneyScreen';
+import AddCustomerScreen from './screens/AddCustomerScreen';
+import CustomerProfileScreen from './screens/CustomerProfileScreen';
 
-export default function AddCustomerScreen({ onBack, onSaved }: Props) {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [notes, setNotes] = useState('');
-  const [saving, setSaving] = useState(false);
+type ScreenState = 'today' | 'orders' | 'add_order' | 'money' | 'add_customer' | 'customer_profile';
 
-  const handleSave = () => {
-    const cleanName = name.trim();
-    if (!cleanName) {
-      Alert.alert('Name needed', 'Please enter the customer\'s name.');
-      return;
-    }
-    if (saving) return;
-    setSaving(true);
+function AppContent() {
+  const [currentScreen, setCurrentScreen] = useState<ScreenState>('today');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [refreshVersion, setRefreshVersion] = useState<number>(1);
 
-    try {
-      // ADJUST: table and column names must match your setupDatabase()
-      const result = db.runSync(
-        'INSERT INTO customers (name, phone, notes) VALUES (?, ?, ?)',
-        [cleanName, phone.trim(), notes.trim()]
-      );
-      onSaved(Number(result.lastInsertRowId));
-    } catch (err) {
-      console.error('Failed to save customer:', err);
-      Alert.alert('Could not save', 'Something went wrong. Please try again.');
-      setSaving(false);
-    }
+  const triggerDataRefresh = () => {
+    setRefreshVersion((prev) => prev + 1);
+  };
+
+  const navigateToCustomerProfile = (id: number) => {
+    setSelectedCustomerId(id);
+    setCurrentScreen('customer_profile');
+  };
+
+  const getTabActiveState = (tabName: 'today' | 'customers' | 'orders' | 'money') => {
+    if (tabName === 'today' && currentScreen === 'today') return true;
+    if (tabName === 'customers' && (currentScreen === 'add_customer' || currentScreen === 'customer_profile')) return true;
+    if (tabName === 'orders' && (currentScreen === 'orders' || currentScreen === 'add_order')) return true;
+    if (tabName === 'money' && currentScreen === 'money') return true;
+    return false;
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-          <MaterialIcons name="arrow-back" size={24} color={colors.indigo} />
-        </Pressable>
-        <Text style={styles.title}>New customer</Text>
-        <View style={styles.backBtn} />
+    <View style={styles.container}>
+      <StatusBar style="dark" />
+
+      {/* --- MAIN PAGE ROUTER BODY --- */}
+      <View style={{ flex: 1 }}>
+        {currentScreen === 'today' && (
+          <TodayScreen
+            version={refreshVersion}
+            onOpenCustomer={navigateToCustomerProfile}
+            onAddOrder={() => setCurrentScreen('add_order')}
+            onAddClient={() => setCurrentScreen('add_customer')}
+            onViewClients={() => setCurrentScreen('orders')}
+          />
+        )}
+
+        {currentScreen === 'orders' && (
+          <OrdersScreen
+            version={refreshVersion}
+            onAddOrder={() => setCurrentScreen('add_order')}
+          />
+        )}
+
+        {currentScreen === 'add_order' && (
+          <AddOrderScreen
+            onBack={() => setCurrentScreen('orders')}
+            onSaved={() => {
+              triggerDataRefresh();
+              setCurrentScreen('orders');
+            }}
+          />
+        )}
+
+        {currentScreen === 'add_customer' && (
+          <AddCustomerScreen
+            onBack={() => setCurrentScreen('today')}
+            onSaved={(id) => {
+              triggerDataRefresh();
+              navigateToCustomerProfile(id);
+            }}
+          />
+        )}
+
+        {currentScreen === 'customer_profile' && selectedCustomerId !== null && (
+          <CustomerProfileScreen
+            id={selectedCustomerId}
+            onBack={() => setCurrentScreen('today')}
+            onChanged={triggerDataRefresh}
+          />
+        )}
+
+        {currentScreen === 'money' && (
+          <MoneyScreen version={refreshVersion} />
+        )}
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.form}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={styles.label}>Name *</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="e.g. Amaka Obi"
-            placeholderTextColor={colors.muted}
-            autoCapitalize="words"
-          />
-
-          <Text style={styles.label}>Phone</Text>
-          <TextInput
-            style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="e.g. 0803 000 0000"
-            placeholderTextColor={colors.muted}
-            keyboardType="phone-pad"
-          />
-
-          <Text style={styles.label}>Description / notes</Text>
-          <TextInput
-            style={[styles.input, styles.multiline]}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Preferences, fit notes, anything to remember"
-            placeholderTextColor={colors.muted}
-            multiline
-            textAlignVertical="top"
-          />
-
-          <Pressable
-            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-            onPress={handleSave}
-            disabled={saving}
+      {/* --- STANDARDIZED BOTTOM NAVIGATION BAR --- */}
+      {['today', 'orders', 'money', 'add_customer', 'customer_profile'].includes(currentScreen) && (
+        <View style={styles.navBar}>
+          
+          {/* TODAY TAB */}
+          <Pressable 
+            style={styles.navItem} 
+            onPress={() => setCurrentScreen('today')}
           >
-            <Text style={styles.saveText}>{saving ? 'Saving...' : 'Save customer'}</Text>
+            <View style={[styles.topIndicator, getTabActiveState('today') && styles.topIndicatorActive]} />
+            <MaterialIcons 
+              name="calendar-today" 
+              size={22} 
+              color={getTabActiveState('today') ? colors.indigo : colors.muted} 
+            />
+            <Text style={[styles.navText, getTabActiveState('today') && styles.navTextActive]}>Today</Text>
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+          {/* CUSTOMERS TAB */}
+          <Pressable 
+            style={styles.navItem} 
+            onPress={() => setCurrentScreen('add_customer')}
+          >
+            <View style={[styles.topIndicator, getTabActiveState('customers') && styles.topIndicatorActive]} />
+            <MaterialIcons 
+              name="people-outline" 
+              size={24} 
+              color={getTabActiveState('customers') ? colors.indigo : colors.muted} 
+            />
+            <Text style={[styles.navText, getTabActiveState('customers') && styles.navTextActive]}>Customers</Text>
+          </Pressable>
+
+          {/* ORDERS TAB */}
+          <Pressable 
+            style={styles.navItem} 
+            onPress={() => setCurrentScreen('orders')}
+          >
+            <View style={[styles.topIndicator, getTabActiveState('orders') && styles.topIndicatorActive]} />
+            <MaterialIcons 
+              name="assignment" 
+              size={22} 
+              color={getTabActiveState('orders') ? colors.indigo : colors.muted} 
+            />
+            <Text style={[styles.navText, getTabActiveState('orders') && styles.navTextActive]}>Orders</Text>
+          </Pressable>
+
+          {/* MONEY TAB */}
+          <Pressable 
+            style={styles.navItem} 
+            onPress={() => setCurrentScreen('money')}
+          >
+            <View style={[styles.topIndicator, getTabActiveState('money') && styles.topIndicatorActive]} />
+            <MaterialIcons 
+              name="account-balance-wallet" 
+              size={22} 
+              color={getTabActiveState('money') ? colors.indigo : colors.muted} 
+            />
+            <Text style={[styles.navText, getTabActiveState('money') && styles.navTextActive]}>Money</Text>
+          </Pressable>
+
+        </View>
+      )}
+    </View>
   );
 }
 
+export default function App() {
+  return <AppContent />;
+}
+
+
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.cream },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-    backgroundColor: colors.white,
+  container: {
+    flex: 1,
+    backgroundColor: colors.cream,
   },
-  backBtn: { width: 32, alignItems: 'flex-start' },
-  title: { fontSize: 18, fontWeight: '600', color: colors.indigo },
-  form: { padding: 20 },
-  label: {
-    fontSize: 13,
+  navBar: {
+    // Pin the bar tightly to the very bottom edge of the display screen layout context
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    
+    // Total physical size wrapper mapping metrics container
+    height: Platform.OS === 'android' ? 92 : 76, 
+    backgroundColor: colors.white,
+    
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    
+    // FIXED: Instead of margins, we use padding to push the icons up.
+    // This keeps the white background extending all the way down behind the phone's navigation keys!
+    paddingBottom: Platform.OS === 'android' ? 36 : 12,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    position: 'relative',
+  },
+  topIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: '15%',
+    right: '15%',
+    height: 3,
+    backgroundColor: 'transparent',
+  },
+  topIndicatorActive: {
+    backgroundColor: colors.indigo,
+  },
+  navText: {
+    fontSize: 11,
     fontWeight: '500',
     color: colors.muted,
-    marginBottom: 6,
-    marginTop: 16,
+    marginTop: 2,
+    paddingBottom: 2,
   },
-  input: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#222',
+  navTextActive: {
+    color: colors.indigo,
+    fontWeight: '600',
   },
-  multiline: { minHeight: 100 },
-  saveBtn: {
-    backgroundColor: colors.indigo,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 28,
-  },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveText: { color: colors.white, fontSize: 16, fontWeight: '600' },
 });
+

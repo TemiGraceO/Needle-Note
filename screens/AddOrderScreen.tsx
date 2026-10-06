@@ -40,12 +40,11 @@ export default function AddOrderScreen({ onBack, onSaved }: AddOrderScreenProps)
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'], // Safe array input configuration format mapping for modern Expo APIs
       allowsEditing: true,
       quality: 0.7,
     });
 
-    // FIXED: Safely read the uri out of the asset array item using explicit indexing
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const snappedUri = result.assets[0]?.uri;
       if (snappedUri) {
@@ -64,7 +63,7 @@ export default function AddOrderScreen({ onBack, onSaved }: AddOrderScreenProps)
       return;
     }
 
-    const orderAmount = parseInt(amount) || 0;
+    const orderAmount = parseInt(amount, 10) || 0;
 
     try {
       const result = db.runSync(

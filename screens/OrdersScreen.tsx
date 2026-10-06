@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, FlatList, Image, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { getOrdersWithCustomerNames } from '../lib/db';
+import { db } from '../lib/db'; // Standardized to use the unified db layer directly
 
 interface OrdersScreenProps {
   version: number;
@@ -13,8 +13,19 @@ export default function OrdersScreen({ version, onAddOrder }: OrdersScreenProps)
   const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchedOrders = getOrdersWithCustomerNames();
-    setOrders(fetchedOrders);
+    try {
+      // Query fetching active orders joined with the customer's identity name string
+      const fetchedOrders = db.getAllSync<any>(
+        `SELECT orders.*, customers.name as customer_name 
+         FROM orders 
+         LEFT JOIN customers ON orders.customer_id = customers.id 
+         ORDER BY orders.id DESC`
+      );
+      setOrders(fetchedOrders || []);
+    } catch (err) {
+      console.error('Failed to load orders feed data from local storage layer:', err);
+      setOrders([]);
+    }
   }, [version]);
 
   return (
@@ -50,11 +61,11 @@ export default function OrdersScreen({ version, onAddOrder }: OrdersScreenProps)
                 </View>
               )}
               <View style={styles.cardDetails}>
-                <Text style={styles.customerName}>{item.customer_name}</Text>
-                <Text style={styles.styleDesc} numberOfLines={2}>{item.description}</Text>
+                <Text style={styles.customerName}>{item.customer_name || 'Unknown Client'}</Text>
+                <Text style={styles.styleDesc} numberOfLines={2}>{item.description || 'No design notes written'}</Text>
                 <View style={styles.badgeRow}>
                   <Text style={styles.dateBadge}>📅 {item.due_date || 'No Date'}</Text>
-                  <Text style={styles.balanceBadge}>₦{item.total?.toLocaleString() || 0} Total</Text>
+                  <Text style={styles.balanceBadge}>₦{Number(item.total || 0).toLocaleString()}</Text>
                 </View>
               </View>
             </View>

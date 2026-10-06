@@ -42,10 +42,11 @@ export function getCustomer(id: number): Customer | null {
   return r ? toCustomer(r) : null;
 }
 
-export function addCustomer(name: string, phone: string): number {
-  const res = db.runSync('INSERT INTO customers (name, phone) VALUES (?, ?)', [
+export function addCustomer(name: string, phone: string, notes = ''): number {
+  const res = db.runSync('INSERT INTO customers (name, phone, notes) VALUES (?, ?, ?)', [
     name.trim(),
     phone.trim(),
+    notes.trim(),
   ]);
   return res.lastInsertRowId;
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { getFinancialSummary } from '../lib/db';
+import { db } from '../lib/db';
 
 interface MoneyScreenProps {
   version: number;
@@ -25,19 +25,29 @@ export default function MoneyScreen({ version }: MoneyScreenProps) {
 
   useEffect(() => {
     try {
-      const data = getFinancialSummary();
-      setSummary({
-        totalRevenue: data.totalRevenue,
-        totalPaid: data.totalPaid,
-        totalBalance: data.totalBalance,
-      });
-      setHistory(data.history);
+      // Execute local synchronised data calculation pulls across cross-joined entities
+      const revRow = db.getFirstSync<{ total: number }>('SELECT SUM(total) as total FROM orders');
+      const pmtRow = db.getFirstSync<{ total: number }>('SELECT SUM(amount) as total FROM payments');
+      
+      const totalRevenue = revRow?.total || 0;
+      const totalPaid = pmtRow?.total || 0;
+      const totalBalance = Math.max(0, totalRevenue - totalPaid);
+
+      const historyRows = db.getAllSync<any>(
+        `SELECT payments.*, customers.name as customer_name 
+         FROM payments
+         LEFT JOIN orders ON payments.order_id = orders.id
+         LEFT JOIN customers ON orders.customer_id = customers.id
+         ORDER BY payments.id DESC LIMIT 30`
+      );
+
+      setSummary({ totalRevenue, totalPaid, totalBalance });
+      setHistory(historyRows || []);
     } catch (error) {
       console.error('Error loading financial metrics:', error);
     }
   }, [version]);
 
-  // Clean helper to extract the date cleanly from default SQLite strings
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
     return dateString.split(' ')[0];
@@ -45,14 +55,11 @@ export default function MoneyScreen({ version }: MoneyScreenProps) {
 
   return (
     <View style={styles.container}>
-      {/* --- SCREEN HEADER --- */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Financials</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollArea} showsVerticalScrollIndicator={false}>
-        
-        {/* --- PERFORMANCE OVERVIEW OVERVIEW CARD --- */}
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Outstanding Balance Collection</Text>
           <Text style={styles.balanceValue}>₦{summary.totalBalance.toLocaleString()}</Text>
@@ -71,7 +78,6 @@ export default function MoneyScreen({ version }: MoneyScreenProps) {
           </View>
         </View>
 
-        {/* --- DYNAMIC LEDGER LIST ENGINE --- */}
         <Text style={styles.sectionLabel}>Recent Collections Ledger</Text>
         
         {history.length === 0 ? (
@@ -95,8 +101,8 @@ export default function MoneyScreen({ version }: MoneyScreenProps) {
                 ]}
               >
                 <View>
-                  <Text style={styles.ledgerCustomerName}>{item.customer_name}</Text>
-                  <Text style={styles.ledgerDate}>📅 {formatDate(item.paid_at)}</Text>
+                  <Text style={styles.ledgerCustomerName}>{item.customer_name || 'Unknown Client'}</Text>
+                  <Text style={styles.ledgerDate}>📅 {formatDate(item.paid_at || '2026-10-06')}</Text>
                 </View>
                 <Text style={styles.ledgerAmount}>+₦{item.amount.toLocaleString()}</Text>
               </View>
@@ -120,14 +126,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 22, fontWeight: '700', color: '#111827' },
   scrollArea: { padding: 20 },
-  balanceCard: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.line,
-    marginBottom: 24,
-  },
+  balanceCard: { backgroundColor: colors.white, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: colors.line, marginBottom: 24 },
   balanceLabel: { fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' },
   balanceValue: { fontSize: 32, fontWeight: '700', color: '#DC2626', marginTop: 4, letterSpacing: -0.5 },
   divider: { height: 1, backgroundColor: colors.line, marginVertical: 16 },
@@ -136,21 +135,8 @@ const styles = StyleSheet.create({
   statMetaLabel: { fontSize: 11, color: colors.muted, fontWeight: '500' },
   statMetaValue: { fontSize: 16, fontWeight: '700', color: '#111827', marginTop: 2 },
   sectionLabel: { fontSize: 13, fontWeight: '600', color: '#111827', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
-  ledgerWrapper: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
-    overflow: 'hidden',
-  },
-  ledgerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
+  ledgerWrapper: { backgroundColor: colors.white, borderRadius: 12, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  ledgerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.line },
   ledgerCustomerName: { fontSize: 14, fontWeight: '600', color: '#111827' },
   ledgerDate: { fontSize: 11, color: colors.muted, marginTop: 2 },
   ledgerAmount: { fontSize: 14, fontWeight: '700', color: '#10B981' },

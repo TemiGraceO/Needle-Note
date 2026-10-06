@@ -1,277 +1,174 @@
-import React, { useMemo } from 'react';
+import React, { useState } from 'react';
 import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
-  Platform
+  StatusBar as RNStatusBar
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { db } from '../lib/db'; 
+import { colors } from '../theme/colors';
 
-const palette = {
-  background: '#F7F5F0',
-  surface: '#FFFFFF',
-  border: '#ECE7DE',
-  pressed: '#F3EFE8',
-  text: '#1C1B19',
-  textMuted: '#6F6A62',
-  textSubtle: '#A29C92',
-  accent: '#69a8d5',
-  accentSoft: '#F4E9E3',
-  sage: '#4E7A6F',
-  sageSoft: '#E7EFEC',
-  gold: '#B08A3E',
-  danger: '#D9534F',
-  white: '#FFFFFF',
+type Props = {
+  onBack: () => void;
+  onSaved: (id: number) => void;
 };
 
-type IconName = React.ComponentProps<typeof MaterialIcons>['name'];
+export default function AddCustomerScreen({ onBack, onSaved }: Props) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
 
-export interface TodayItem {
-  id: number;
-  customerName: string;
-  detail?: string;
-  time?: string;
-}
+  const handleSave = () => {
+    const cleanName = name.trim();
+    if (!cleanName) {
+      Alert.alert('Name needed', "Please enter the customer's name.");
+      return;
+    }
 
-interface TodayScreenProps {
-  version?: number;
-  items?: TodayItem[];
-  onOpenCustomer: (id: number) => void;
-  onAddOrder?: () => void;
-  onAddClient?: () => void;
-  onOpenSchedule?: () => void;
-  onOpenInventory?: () => void;
-  onViewClients?: () => void;
-  onOpenNotifications?: () => void;
-  notificationCount?: number;
-}
+    if (saving) return;
+    setSaving(true);
 
-const MAX_AGENDA_ITEMS = 5;
-const noop = () => {};
-
-function getGreeting(date: Date) {
-  const hour = date.getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
-function getInitials(name: string) {
-  return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
-}
-
-// --- WATERMARK DATA: bigger but quite faint ---
-const watermarkItems = [
-  { top: 20, left: '8%', rotate: '-20deg', size: 38, opacity: 0.07 },
-  { top: 60, left: '65%', rotate: '15deg', size: 42, opacity: 0.06 },
-  { top: 140, left: '25%', rotate: '-10deg', size: 36, opacity: 0.05 },
-  { top: 180, left: '80%', rotate: '25deg', size: 44, opacity: 0.06 },
-  { top: 260, left: '12%', rotate: '10deg', size: 32, opacity: 0.05 },
-  { top: 320, left: '50%', rotate: '-25deg', size: 40, opacity: 0.06 },
-  { top: 400, left: '75%', rotate: '5deg', size: 34, opacity: 0.05 },
-  { top: 480, left: '35%', rotate: '20deg', size: 38, opacity: 0.04 },
-];
-
-function ScissorsWatermark() {
-  return (
-    <View style={[StyleSheet.absoluteFill, styles.watermarkContainer]} pointerEvents="none">
-      {watermarkItems.map((w, i) => (
-        <View key={i} style={[styles.watermarkIcon, { top: w.top, left: w.left as any, opacity: w.opacity, transform: [{ rotate: w.rotate }] }]}>
-          <MaterialIcons name="content-cut" size={w.size} color={palette.text} />
-        </View>
-      ))}
-    </View>
-  );
-}
-
-export default function TodayScreen({
-  items = [],
-  onOpenCustomer,
-  onAddOrder = noop,
-  onAddClient = noop,
-  onOpenSchedule = noop,
-  onOpenInventory = noop,
-  onViewClients = noop,
-  onOpenNotifications = noop,
-  notificationCount = 0,
-}: TodayScreenProps) {
-  const insets = useSafeAreaInsets();
-
-  const { greeting, dateLabel } = useMemo(() => {
-    const now = new Date();
-    return {
-      greeting: getGreeting(now),
-      dateLabel: now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
-    };
-  }, []);
-
-  const agenda = items.slice(0, MAX_AGENDA_ITEMS);
+    try {
+      const result = db.runSync(
+        'INSERT INTO customers (name, phone, notes) VALUES (?, ?, ?)',
+        [cleanName, phone.trim(), notes.trim()]
+      );
+      onSaved(Number(result.lastInsertRowId));
+    } catch (err) {
+      console.error('Failed to save customer:', err);
+      Alert.alert('Could not save', 'Something went wrong. Please try again.');
+      setSaving(false);
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      <ScissorsWatermark />
-      <View style={[styles.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 100 }]}>
+    <View style={styles.root}>
+      <View style={styles.header}>
+        <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
+          <MaterialIcons name="arrow-back" size={24} color={colors.indigo} />
+        </Pressable>
+        <Text style={styles.title}>New customer</Text>
+        <View style={styles.backBtn} />
+      </View>
 
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.date}>{dateLabel}</Text>
-            <Text style={styles.greeting}>{greeting}</Text>
-          </View>
-          <Pressable onPress={onOpenNotifications} hitSlop={8} style={({ pressed }) => [styles.iconButton, styles.pop, pressed && styles.pressed]}>
-            <MaterialIcons name="notifications-none" size={22} color={palette.text} />
-            {notificationCount > 0 && <View style={styles.badge} />}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+          <Text style={styles.label}>Name *</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g. Amaka Obi"
+            placeholderTextColor={colors.muted}
+            autoCapitalize="words"
+          />
+
+          <Text style={styles.label}>Phone</Text>
+          <TextInput
+            style={styles.input}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="e.g. 0803 000 0000"
+            placeholderTextColor={colors.muted}
+            keyboardType="phone-pad"
+          />
+
+          <Text style={styles.label}>Description / notes</Text>
+          <TextInput
+            style={[styles.input, styles.multiline]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Preferences, fit notes, anything to remember"
+            placeholderTextColor={colors.muted}
+            multiline
+            textAlignVertical="top"
+          />
+
+          <Pressable
+            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            <Text style={styles.saveText}>{saving ? 'Saving...' : 'Save customer'}</Text>
           </Pressable>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, styles.sectionTitleSpacing]}>Quick actions</Text>
-          <View style={styles.actions}>
-            <QuickAction icon="add" label="New order" onPress={onAddOrder} primary />
-            <QuickAction icon="person-add-alt" label="Add client" onPress={onAddClient} />
-            <QuickAction icon="event" label="Schedule" onPress={onOpenSchedule} />
-            <QuickAction icon="inventory-2" label="Inventory" onPress={onOpenInventory} />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's schedule</Text>
-          <View style={{ marginTop: 12 }}>
-            {agenda.length === 0 ? (
-              <EmptyState onAddOrder={onAddOrder} onViewClients={onViewClients} />
-            ) : (
-              <View style={styles.cardShadowWrap}>
-                <View style={[styles.card, styles.cardClip]}>
-                  {agenda.map((item, index) => (
-                    <AgendaRow key={item.id} item={item} isLast={index === agenda.length - 1} onPress={() => onOpenCustomer(item.id)} />
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        </View>
-
-      </View>
-    </View>
-  );
-}
-
-function QuickAction({ icon, label, onPress, primary = false }: { icon: IconName; label: string; onPress: () => void; primary?: boolean }) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}>
-      <View style={[styles.actionIcon, styles.pop, primary && styles.actionIconPrimary]}>
-        <MaterialIcons name={icon} size={22} color={primary ? palette.white : palette.accent} />
-      </View>
-      <Text style={styles.actionLabel} numberOfLines={1}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function AgendaRow({ item, isLast, onPress }: { item: TodayItem; isLast: boolean; onPress: () => void }) {
-  return (
-    <>
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-        <View style={styles.avatar}><Text style={styles.avatarText}>{getInitials(item.customerName)}</Text></View>
-        <View style={styles.rowBody}>
-          <Text style={styles.rowTitle} numberOfLines={1}>{item.customerName}</Text>
-          {item.detail ? (
-            <View style={styles.rowMetaWrap}>
-              <View style={[styles.dot, { backgroundColor: palette.gold }]} />
-              <Text style={styles.rowMeta} numberOfLines={1}>{item.detail}</Text>
-            </View>
-          ) : null}
-        </View>
-        {item.time ? <Text style={styles.rowTime}>{item.time}</Text> : null}
-        <MaterialIcons name="chevron-right" size={20} color={palette.textSubtle} />
-      </Pressable>
-      {!isLast && <View style={styles.rowDivider} />}
-    </>
-  );
-}
-
-function EmptyState({ onAddOrder, onViewClients }: { onAddOrder: () => void; onViewClients: () => void }) {
-  return (
-    <View style={[styles.card, styles.empty, styles.popStrong]}>
-      <View style={styles.emptyIcon}><MaterialIcons name="event-available" size={28} color={palette.sage} /></View>
-      <Text style={styles.emptyTitle}>You're all caught up</Text>
-      <Text style={styles.emptyText}>No fittings, pickups or collections today. New appointments will show up here.</Text>
-      <Pressable onPress={onAddOrder} style={({ pressed }) => [styles.primaryButton, styles.pop, pressed && styles.pressed]}>
-        <MaterialIcons name="add" size={20} color={palette.white} />
-        <Text style={styles.primaryButtonText}>New order</Text>
-      </Pressable>
-      <Pressable onPress={onViewClients} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
-        <Text style={styles.secondaryButtonText}>View clients</Text>
-      </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: palette.background },
-  content: { flex: 1, paddingHorizontal: 20 },
-
-  watermarkContainer: { zIndex: 0 },
-  watermarkIcon: { position: 'absolute' },
-
-  pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
-  actionPressed: { opacity: 0.9, transform: [{ scale: 0.96 }] },
-  pop: {
-    ...Platform.select({
-      ios: { shadowColor: '#1C1B19', shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
-      android: { elevation: 3 },
-    }),
+  root: {
+    flex: 1,
+    backgroundColor: colors.cream,
+    paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 0) + 12 : 54,
   },
-  popStrong: {
-    ...Platform.select({
-      ios: { shadowColor: '#1C1B19', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
-      android: { elevation: 5 },
-    }),
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    backgroundColor: colors.white,
   },
-  // Shadow-only wrapper for the schedule card. Keep this separate from any
-  // view that also sets overflow: 'hidden' (like cardClip below), since
-  // clipping overflow clips the shadow down to a hard sliver too.
-  cardShadowWrap: {
-    borderRadius: 16,
-    backgroundColor: palette.background,
-    ...Platform.select({
-      ios: { shadowColor: '#1C1B19', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
-      android: { elevation: 5 },
-    }),
+  backBtn: {
+    width: 32,
+    alignItems: 'flex-start',
   },
-  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, zIndex: 1 },
-  headerText: { flex: 1, paddingRight: 16 },
-  date: { fontSize: 13, fontWeight: '500', color: palette.textMuted },
-  greeting: { fontSize: 28, fontWeight: '700', color: palette.text, letterSpacing: -0.5, marginTop: 4 },
-  iconButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: palette.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 4.5, backgroundColor: palette.danger, borderWidth: 1.5, borderColor: palette.surface },
-  card: { backgroundColor: palette.surface, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
-  cardClip: { borderRadius: 16, overflow: 'hidden' },
-  section: { marginTop: 28, zIndex: 1 },
-  sectionTitle: { fontSize: 17, fontWeight: '600', color: palette.text },
-  sectionTitleSpacing: { marginBottom: 12 },
-  actions: { flexDirection: 'row', gap: 12 },
-  action: { flex: 1, alignItems: 'center' },
-  actionIcon: { alignSelf: 'stretch', height: 56, borderRadius: 14, backgroundColor: palette.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' },
-  actionIconPrimary: { backgroundColor: palette.accent, borderColor: palette.accent },
-  actionLabel: { fontSize: 12, fontWeight: '500', color: palette.text, marginTop: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
-  rowPressed: { backgroundColor: palette.pressed },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: palette.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 14, fontWeight: '600', color: palette.accent },
-  rowBody: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: palette.text },
-  rowMetaWrap: { flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  rowMeta: { flexShrink: 1, fontSize: 13, color: palette.textMuted },
-  rowTime: { fontSize: 13, fontWeight: '500', color: palette.textMuted },
-  rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: palette.border, marginLeft: 68 },
-  empty: { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24 },
-  emptyIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: palette.sageSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 17, fontWeight: '600', color: palette.text },
-  emptyText: { fontSize: 14, lineHeight: 20, color: palette.textMuted, textAlign: 'center', marginTop: 6, marginBottom: 20, maxWidth: 280 },
-  primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'stretch', backgroundColor: palette.accent, paddingVertical: 13, borderRadius: 12 },
-  primaryButtonText: { fontSize: 15, fontWeight: '600', color: palette.white },
-  secondaryButton: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: 12, marginTop: 4 },
-  secondaryButtonText: { fontSize: 15, fontWeight: '600', color: palette.accent },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.indigo,
+  },
+  form: {
+    padding: 20,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.muted,
+    marginBottom: 6,
+    marginTop: 16,
+  },
+  input: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#222',
+  },
+  multiline: {
+    minHeight: 100,
+  },
+  saveBtn: {
+    backgroundColor: colors.indigo,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 28,
+  },
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
+  saveText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

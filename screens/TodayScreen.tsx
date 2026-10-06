@@ -4,26 +4,27 @@ import {
   StyleSheet,
   Text,
   View,
-  Platform
+  Platform,
+  StatusBar as RNStatusBar
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors } from '../theme/colors';
 
 const palette = {
-  background: '#F7F5F0',
-  surface: '#FFFFFF',
-  border: '#ECE7DE',
+  background: colors.cream,
+  surface: colors.white,
+  border: colors.line,
   pressed: '#F3EFE8',
-  text: '#1C1B19',
-  textMuted: '#6F6A62',
+  text: colors.ink,
+  textMuted: colors.muted,
   textSubtle: '#A29C92',
-  accent: '#69a8d5',
+  accent: colors.indigo,
   accentSoft: '#F4E9E3',
   sage: '#4E7A6F',
   sageSoft: '#E7EFEC',
   gold: '#B08A3E',
   danger: '#D9534F',
-  white: '#FFFFFF',
+  white: colors.white,
 };
 
 type IconName = React.ComponentProps<typeof MaterialIcons>['name'];
@@ -60,7 +61,7 @@ function getGreeting(date: Date) {
 
 function getInitials(name: string) {
   return (
-    name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()?? '').join('') || '?'
+    name.trim().split(/\s+/).slice(0, 2).map((part) => part?.toUpperCase() ?? '').join('') || '?'
   );
 }
 
@@ -75,7 +76,10 @@ export default function TodayScreen({
   onOpenNotifications = noop,
   notificationCount = 0,
 }: TodayScreenProps) {
-  const insets = useSafeAreaInsets();
+  
+  // SAFE PURE-JAVASCRIPT FALLBACK FOR INSETS
+  const paddingTop = Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 0) + 12 : 54;
+  const paddingBottom = Platform.OS === 'ios' ? 134 : 110;
 
   const { greeting, dateLabel } = useMemo(() => {
     const now = new Date();
@@ -93,12 +97,7 @@ export default function TodayScreen({
 
   return (
     <View style={styles.container}>
-      <View
-        style={[
-          styles.content,
-          { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 100 },
-        ]}
-      >
+      <View style={[styles.content, { paddingTop, paddingBottom }]}>
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={styles.date}>{dateLabel}</Text>
@@ -125,7 +124,7 @@ export default function TodayScreen({
             <Text style={styles.sectionTitle}>Today's schedule</Text>
           </View>
 
-          {agenda.length === 0? (
+          {agenda.length === 0 ? (
             <EmptyState onAddOrder={onAddOrder} onViewClients={onViewClients} />
           ) : (
             <View style={[styles.card, styles.cardClip, styles.popStrong]}>
@@ -149,7 +148,7 @@ function QuickAction({ icon, label, onPress, primary = false }: { icon: IconName
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}>
       <View style={[styles.actionIcon, styles.pop, primary && styles.actionIconPrimary]}>
-        <MaterialIcons name={icon} size={22} color={primary? palette.white : palette.accent} />
+        <MaterialIcons name={icon} size={22} color={primary ? palette.white : palette.accent} />
       </View>
       <Text style={styles.actionLabel} numberOfLines={1}>{label}</Text>
     </Pressable>
@@ -163,14 +162,14 @@ function AgendaRow({ item, isLast, onPress }: { item: TodayItem; isLast: boolean
         <View style={[styles.avatar, styles.popLight]}><Text style={styles.avatarText}>{getInitials(item.customerName)}</Text></View>
         <View style={styles.rowBody}>
           <Text style={styles.rowTitle} numberOfLines={1}>{item.customerName}</Text>
-          {item.detail? (
+          {item.detail ? (
             <View style={styles.rowMetaWrap}>
               <View style={[styles.dot, { backgroundColor: palette.gold }]} />
               <Text style={styles.rowMeta} numberOfLines={1}>{item.detail}</Text>
             </View>
           ) : null}
         </View>
-        {item.time? <Text style={styles.rowTime}>{item.time}</Text> : null}
+        {item.time ? <Text style={styles.rowTime}>{item.time}</Text> : null}
         <MaterialIcons name="chevron-right" size={20} color={palette.textSubtle} />
       </Pressable>
       {!isLast && <View style={styles.rowDivider} />}
@@ -201,21 +200,20 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
   actionPressed: { opacity: 0.9, transform: [{ scale: 0.96 }] },
 
-  // POP EFFECTS
   popLight: {
-   ...Platform.select({
+    ...Platform.select({
       ios: { shadowColor: '#1C1B19', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
       android: { elevation: 2 },
     }),
   },
   pop: {
-   ...Platform.select({
+    ...Platform.select({
       ios: { shadowColor: '#1C1B19', shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
       android: { elevation: 3 },
     }),
   },
   popStrong: {
-   ...Platform.select({
+    ...Platform.select({
       ios: { shadowColor: '#1C1B19', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
       android: { elevation: 5 },
     }),
@@ -226,35 +224,39 @@ const styles = StyleSheet.create({
   date: { fontSize: 13, fontWeight: '500', color: palette.textMuted },
   greeting: { fontSize: 28, fontWeight: '700', color: palette.text, letterSpacing: -0.5, marginTop: 4 },
   iconButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: palette.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 4.5, backgroundColor: palette.danger, borderWidth: 1.5, borderColor: palette.surface },
-  card: { backgroundColor: palette.surface, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
-  cardClip: { borderRadius: 16, overflow: 'hidden' },
-  section: { marginTop: 28 },
+  badge: { position: 'absolute', top: 12, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: palette.danger },
+  
+  section: { marginTop: 24 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sectionTitle: { fontSize: 17, fontWeight: '600', color: palette.text },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: palette.text, letterSpacing: -0.2 },
   sectionTitleSpacing: { marginBottom: 12 },
-  actions: { flexDirection: 'row', gap: 12 },
+
+  actions: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   action: { flex: 1, alignItems: 'center' },
-  actionIcon: { alignSelf: 'stretch', height: 56, borderRadius: 14, backgroundColor: palette.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' },
+  actionIcon: { width: 54, height: 54, borderRadius: 16, backgroundColor: palette.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   actionIconPrimary: { backgroundColor: palette.accent, borderColor: palette.accent },
-  actionLabel: { fontSize: 12, fontWeight: '500', color: palette.text, marginTop: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  actionLabel: { fontSize: 12, fontWeight: '500', color: palette.text },
+
+  card: { backgroundColor: palette.surface, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border, padding: 16 },
+  cardClip: { padding: 0, overflow: 'hidden' },
+  
+  row: { flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: palette.surface },
   rowPressed: { backgroundColor: palette.pressed },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: palette.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 14, fontWeight: '600', color: palette.accent },
-  rowBody: { flex: 1 },
+  avatar: { width: 40, height: 40, borderRadius: 14, backgroundColor: palette.background, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  avatarText: { fontSize: 14, fontWeight: '600', color: palette.text },
+  rowBody: { flex: 1, marginRight: 8 },
   rowTitle: { fontSize: 15, fontWeight: '600', color: palette.text },
-  rowMetaWrap: { flexDirection: 'row', alignItems: 'center', marginTop: 3, gap: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  rowMeta: { flexShrink: 1, fontSize: 13, color: palette.textMuted },
-  rowTime: { fontSize: 13, fontWeight: '500', color: palette.textMuted },
-  rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: palette.border, marginLeft: 68 },
-  empty: { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24 },
-  emptyIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: palette.sageSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 17, fontWeight: '600', color: palette.text },
-  emptyText: { fontSize: 14, lineHeight: 20, color: palette.textMuted, textAlign: 'center', marginTop: 6, marginBottom: 20, maxWidth: 280 },
-  primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'stretch', backgroundColor: palette.accent, paddingVertical: 13, borderRadius: 12 },
-  primaryButtonText: { fontSize: 15, fontWeight: '600', color: palette.white },
-  secondaryButton: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: 12, marginTop: 4 },
-  secondaryButtonText: { fontSize: 15, fontWeight: '600', color: palette.accent },
+  rowMetaWrap: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 },
+dot: { width: 6, height: 6, borderRadius: 3 },
+rowMeta: { fontSize: 12, color: palette.textMuted },
+rowTime: { fontSize: 12, color: palette.textSubtle, marginRight: 4, fontWeight: '500' },
+rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: palette.border, marginLeft: 66 },
+empty: { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24 },
+emptyIcon: { width: 60, height: 60, borderRadius: 20, backgroundColor: palette.background, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+emptyTitle: { fontSize: 16, fontWeight: '600', color: palette.text, marginBottom: 6 },
+emptyText: { fontSize: 13, color: palette.textMuted, textAlign: 'center', lineHeight: 18, marginBottom: 20 },
+primaryButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: palette.accent, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 20, gap: 6 },
+primaryButtonText: { color: palette.white, fontSize: 14, fontWeight: '600' },
+secondaryButton: { marginTop: 12, paddingVertical: 8, paddingHorizontal: 16 },
+secondaryButtonText: { color: palette.accent, fontSize: 13, fontWeight: '600' },
 });

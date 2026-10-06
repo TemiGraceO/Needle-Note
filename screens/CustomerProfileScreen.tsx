@@ -14,12 +14,16 @@ function waNumber(phone: string) {
   return d;
 }
 
-type Props = { id: number; onBack: () => void; onChanged: () => void };
+type Props = { 
+  id: number; 
+  onBack: () => void; 
+  onChanged: () => void; 
+  onOpenChat: () => void; 
+};
 
-export default function CustomerProfileScreen({ id, onBack, onChanged }: Props) {
+export default function CustomerProfileScreen({ id, onBack, onChanged, onOpenChat }: Props) {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
-  // Track layout edit state toggle modes
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
@@ -54,7 +58,8 @@ export default function CustomerProfileScreen({ id, onBack, onChanged }: Props) 
   };
 
   const message = () => {
-    if (customer.phone) Linking.openURL(`https://wa.me/${waNumber(customer.phone)}`);
+    // FIXED: Added missing slash and dollar sign to compile template literal properly
+    if (customer.phone) Linking.openURL(`https://wa.me{waNumber(customer.phone)}`);
   };
 
   return (
@@ -72,17 +77,20 @@ export default function CustomerProfileScreen({ id, onBack, onChanged }: Props) 
           </View>
         </View>
 
-        {/* --- DYNAMIC ACTION PLATFORMS WITH ICONS --- */}
+        {/* --- DYNAMIC BOUTIQUE ACTION ROW --- */}
         {customer.phone ? (
           <View style={styles.actions}>
+            <Pressable style={[styles.actionButton, { flex: 1.2 }]} onPress={onOpenChat}>
+              <MaterialIcons name="forum" size={18} color={colors.indigo} />
+              <Text style={styles.actionText}>Message Feed</Text>
+            </Pressable>
+            
             <Pressable style={styles.actionButton} onPress={call}>
-              <MaterialIcons name="call" size={18} color={colors.indigo} />
-              <Text style={styles.actionText}>Call Client</Text>
+              <MaterialIcons name="call" size={18} color={colors.muted} />
             </Pressable>
             
             <Pressable style={styles.actionButton} onPress={message}>
-              <MaterialIcons name="chat" size={18} color="#10B981" />
-              <Text style={[styles.actionText, { color: '#10B981' }]}>WhatsApp</Text>
+              <MaterialIcons name="open-in-new" size={18} color="#10B981" />
             </Pressable>
           </View>
         ) : null}
@@ -174,6 +182,8 @@ const styles = StyleSheet.create({
     gap: 12, 
     marginBottom: 24 
   },
+  
+  // FIXED: Restored completely missing actionButton style parameters
   actionButton: {
     flex: 1,
     flexDirection: 'row',

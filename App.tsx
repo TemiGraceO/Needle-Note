@@ -17,11 +17,15 @@ import AddOrderScreen from './screens/AddOrderScreen';
 import AddCustomerScreen from './screens/AddCustomerScreen';
 import CustomerProfileScreen from './screens/CustomerProfileScreen';
 
-type MainTab = 'today' | 'customers' | 'orders' | 'money';
-type NestedScreen = 'add_customer' | 'add_order' | 'customer_profile';
+// --- NEW CHAT LOG OVERLAY ---
+import ChatLogScreen from './screens/ChatLogScreen';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+type MainTab = 'today' | 'customers' | 'orders' | 'money';
+type NestedScreen = 'add_customer' | 'add_order' | 'customer_profile' | 'chat_log';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const INDICATOR_WIDTH = SCREEN_WIDTH / 4; 
+const LINE_WIDTH = INDICATOR_WIDTH * 0.7; // The dynamic top accent indicator line width
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<MainTab>('today');
@@ -35,7 +39,7 @@ export default function App() {
   const scrollX = useRef(new Animated.Value(0)).current;
   
   // Controls the vertical translation entry animation for full-page sheets
-  const verticalAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const verticalAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
 
   const triggerDataRefresh = () => {
     setRefreshVersion((prev) => prev + 1);
@@ -74,7 +78,7 @@ export default function App() {
     if (customerId !== null) setSelectedCustomerId(customerId);
     setNestedScreen(screenType);
     
-    verticalAnim.setValue(SCREEN_HEIGHT);
+    verticalAnim.setValue(Dimensions.get('window').height);
     Animated.timing(verticalAnim, {
       toValue: 0,
       duration: 260,
@@ -85,7 +89,7 @@ export default function App() {
   // Triggers slide-down exit animation
   const closeNestedScreen = () => {
     Animated.timing(verticalAnim, {
-      toValue: SCREEN_HEIGHT,
+      toValue: Dimensions.get('window').height,
       duration: 220,
       useNativeDriver: true,
     }).start(() => {
@@ -97,10 +101,20 @@ export default function App() {
     openNestedScreen('customer_profile', id);
   };
 
-  // Computes running active bottom indicator position based on scrolling percentage
+  // FIXED MATH STEP ARRAY: Maps exact center-pixel offsets for the tabs so the line never drifts
   const indicatorTranslateX = scrollX.interpolate({
-    inputRange: [0, SCREEN_WIDTH * 3],
-    outputRange: [0, INDICATOR_WIDTH],
+    inputRange: [
+      0, 
+      SCREEN_WIDTH, 
+      SCREEN_WIDTH * 2, 
+      SCREEN_WIDTH * 3
+    ],
+    outputRange: [
+      0, 
+      INDICATOR_WIDTH, 
+      INDICATOR_WIDTH * 2, 
+      INDICATOR_WIDTH * 3
+    ],
     extrapolate: 'clamp',
   });
 
@@ -171,11 +185,11 @@ export default function App() {
 
       {/* --- DYNAMIC BOUTIQUE BOTTOM TAB BAR TRACKER CONTROLS --- */}
       <View style={styles.navBar}>
-        {/* Adaptive sub-pixel moving highlight indicator bar */}
+        {/* Perfectly centered highlight indicator bar that locks onto layout slots */}
         <Animated.View 
           style={[
             styles.movingIndicatorLine, 
-            { width: INDICATOR_WIDTH * 0.7, transform: [{ translateX: indicatorTranslateX }] }
+            { width: LINE_WIDTH, transform: [{ translateX: indicatorTranslateX }] }
           ]} 
         />
         
@@ -239,6 +253,14 @@ export default function App() {
               id={selectedCustomerId}
               onBack={closeNestedScreen}
               onChanged={triggerDataRefresh}
+              onOpenChat={() => openNestedScreen('chat_log', selectedCustomerId)}
+            />
+          )}
+
+          {nestedScreen === 'chat_log' && selectedCustomerId !== null && (
+            <ChatLogScreen
+              customerId={selectedCustomerId}
+              onBack={() => openNestedScreen('customer_profile', selectedCustomerId)}
             />
           )}
         </Animated.View>
@@ -265,31 +287,33 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: Platform.OS === 'android' ? 104 : 84,
-    backgroundColor: colors.white,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingBottom: Platform.OS === 'android' ? 36 : 16,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-  },
-  movingIndicatorLine: {
-    position: 'absolute',
-    top: 0,
-    left: (INDICATOR_WIDTH * 0.3) / 2, 
-    height: 3,
-    backgroundColor: colors.indigo,
-    borderRadius: 2,
-  },
-  navText: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
-  },
+backgroundColor: colors.white,
+borderTopWidth: 1,
+borderTopColor: colors.line,
+flexDirection: 'row',
+// FIXED: Formats item cells in a strict aligned sequence to map index positions accurately
+justifyContent: 'flex-start',
+alignItems: 'center',
+paddingBottom: Platform.OS === 'android' ? 36 : 16,
+},
+navItem: {
+width: INDICATOR_WIDTH, // FIXED: Gives each navigation button block exactly 25% width share
+alignItems: 'center',
+justifyContent: 'center',
+height: '100%',
+},
+movingIndicatorLine: {
+position: 'absolute',
+top: 0,
+// FIXED MATH: Sets a clean center alignment starting position regardless of device dimensions
+left: (INDICATOR_WIDTH - LINE_WIDTH) / 2,
+height: 3,
+backgroundColor: colors.indigo,
+borderRadius: 2,
+},
+navText: {
+fontSize: 11,
+fontWeight: '600',
+marginTop: 2,
+},
 });

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { StyleSheet, View, Text, Pressable, Platform, Animated, Dimensions, Easing } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
-
 
 // --- THEME & CORES ---
 import { colors } from './theme/colors';
@@ -17,142 +16,152 @@ import CustomerProfileScreen from './screens/CustomerProfileScreen';
 
 type ScreenState = 'today' | 'orders' | 'add_order' | 'money' | 'add_customer' | 'customer_profile';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const SCREEN_HIERARCHY: Record<ScreenState, number> = {
+  today: 0,
+  add_customer: 1,
+  customer_profile: 1,
+  orders: 2,
+  add_order: 2,
+  money: 3,
+};
+
 function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<ScreenState>('today');
+  const [nextScreen, setNextScreen] = useState<ScreenState | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [refreshVersion, setRefreshVersion] = useState<number>(1);
+  const [isForwardNav, setIsForwardNav] = useState<boolean>(true);
+
+  const slideAnim = React.useRef(new Animated.Value(SCREEN_WIDTH)).current;
+  const currentSlideAnim = React.useRef(new Animated.Value(0)).current;
+
+  const transitionTo = (targetScreen: ScreenState, customerId: number | null = null) => {
+    if (targetScreen === currentScreen) return;
+
+    const currentWeight = SCREEN_HIERARCHY[currentScreen];
+    const targetWeight = SCREEN_HIERARCHY[targetScreen];
+    const isForward = targetWeight >= currentWeight;
+    setIsForwardNav(isForward);
+
+    const nextStartPos = isForward ? SCREEN_WIDTH : -SCREEN_WIDTH;
+    const currentEndPos = isForward ? -SCREEN_WIDTH * 0.3 : SCREEN_WIDTH * 0.3;
+
+    slideAnim.setValue(nextStartPos);
+    currentSlideAnim.setValue(0);
+    
+    setNextScreen(targetScreen);
+    if (customerId !== null) setSelectedCustomerId(customerId);
+
+    // Runs a perfectly linear timing loop for smooth, constant-speed movement
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 220, // Snappy constant speed
+        easing: Easing.linear, // FIXED: Absolute constant movement speed
+        useNativeDriver: true,
+      }),
+      Animated.timing(currentSlideAnim, {
+        toValue: currentEndPos,
+        duration: 220,
+        easing: Easing.linear, // FIXED: Absolute constant movement speed
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setCurrentScreen(targetScreen);
+      setNextScreen(null);
+      currentSlideAnim.setValue(0);
+    });
+  };
 
   const triggerDataRefresh = () => {
     setRefreshVersion((prev) => prev + 1);
   };
 
-  const navigateToCustomerProfile = (id: number) => {
-    setSelectedCustomerId(id);
-    setCurrentScreen('customer_profile');
+  const renderScreenContent = (screen: ScreenState) => {
+    switch (screen) {
+      case 'today':
+        return (
+          <TodayScreen
+            version={refreshVersion}
+            onOpenCustomer={(id) => transitionTo('customer_profile', id)}
+            onAddOrder={() => transitionTo('add_order')}
+            onAddClient={() => transitionTo('add_customer')}
+            onViewClients={() => transitionTo('orders')}
+          />
+        );
+      case 'orders':
+        return <OrdersScreen version={refreshVersion} onAddOrder={() => transitionTo('add_order')} />;
+      case 'add_order':
+        return <AddOrderScreen onBack={() => transitionTo('orders')} onSaved={() => { triggerDataRefresh(); transitionTo('orders'); }} />;
+      case 'add_customer':
+        return <AddCustomerScreen onBack={() => transitionTo('today')} onSaved={(id) => { triggerDataRefresh(); transitionTo('customer_profile', id); }} />;
+      case 'customer_profile':
+        return selectedCustomerId !== null ? <CustomerProfileScreen id={selectedCustomerId} onBack={() => transitionTo('today')} onChanged={triggerDataRefresh} /> : null;
+      case 'money':
+        return <MoneyScreen version={refreshVersion} />;
+      default:
+        return null;
+    }
   };
 
-  const getTabActiveState = (tabName: 'today' | 'customers' | 'orders' | 'money') => {
-    if (tabName === 'today' && currentScreen === 'today') return true;
-    if (tabName === 'customers' && (currentScreen === 'add_customer' || currentScreen === 'customer_profile')) return true;
-    if (tabName === 'orders' && (currentScreen === 'orders' || currentScreen === 'add_order')) return true;
-    if (tabName === 'money' && currentScreen === 'money') return true;
-    return false;
-  };
+  const activeTabHighlight = nextScreen ?? currentScreen;
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
 
-      {/* --- MAIN PAGE ROUTER BODY --- */}
-      <View style={{ flex: 1 }}>
-        {currentScreen === 'today' && (
-          <TodayScreen
-            version={refreshVersion}
-            onOpenCustomer={navigateToCustomerProfile}
-            onAddOrder={() => setCurrentScreen('add_order')}
-            onAddClient={() => setCurrentScreen('add_customer')}
-            onViewClients={() => setCurrentScreen('orders')}
-          />
-        )}
+      <View style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: currentSlideAnim }] }]}>
+          {renderScreenContent(currentScreen)}
+        </Animated.View>
 
-        {currentScreen === 'orders' && (
-          <OrdersScreen
-            version={refreshVersion}
-            onAddOrder={() => setCurrentScreen('add_order')}
-          />
-        )}
-
-        {currentScreen === 'add_order' && (
-          <AddOrderScreen
-            onBack={() => setCurrentScreen('orders')}
-            onSaved={() => {
-              triggerDataRefresh();
-              setCurrentScreen('orders');
-            }}
-          />
-        )}
-
-        {currentScreen === 'add_customer' && (
-          <AddCustomerScreen
-            onBack={() => setCurrentScreen('today')}
-            onSaved={(id) => {
-              triggerDataRefresh();
-              navigateToCustomerProfile(id);
-            }}
-          />
-        )}
-
-        {currentScreen === 'customer_profile' && selectedCustomerId !== null && (
-          <CustomerProfileScreen
-            id={selectedCustomerId}
-            onBack={() => setCurrentScreen('today')}
-            onChanged={triggerDataRefresh}
-          />
-        )}
-
-        {currentScreen === 'money' && (
-          <MoneyScreen version={refreshVersion} />
+        {nextScreen && (
+          <Animated.View 
+            style={[
+              StyleSheet.absoluteFill, 
+              { 
+                transform: [{ translateX: slideAnim }], 
+                backgroundColor: colors.cream,
+                shadowColor: '#000',
+                shadowOffset: { width: isForwardNav ? -2 : 2, height: 0 },
+                shadowOpacity: 0.05,
+                shadowRadius: 6,
+                elevation: 4
+              }
+            ]}
+          >
+            {renderScreenContent(nextScreen)}
+          </Animated.View>
         )}
       </View>
 
-      {/* --- STANDARDIZED BOTTOM NAVIGATION BAR --- */}
       {['today', 'orders', 'money', 'add_customer', 'customer_profile'].includes(currentScreen) && (
         <View style={styles.navBar}>
           
-          {/* TODAY TAB */}
-          <Pressable 
-            style={styles.navItem} 
-            onPress={() => setCurrentScreen('today')}
-          >
-            <View style={[styles.topIndicator, getTabActiveState('today') && styles.topIndicatorActive]} />
-            <MaterialIcons 
-              name="calendar-today" 
-              size={22} 
-              color={getTabActiveState('today') ? colors.indigo : colors.muted} 
-            />
-            <Text style={[styles.navText, getTabActiveState('today') && styles.navTextActive]}>Today</Text>
+          <Pressable style={styles.navItem} onPress={() => transitionTo('today')}>
+            <View style={[styles.topIndicator, activeTabHighlight === 'today' && styles.topIndicatorActive]} />
+            <MaterialIcons name="calendar-today" size={22} color={activeTabHighlight === 'today' ? colors.indigo : colors.muted} />
+            <Text style={[styles.navText, activeTabHighlight === 'today' && styles.navTextActive]}>Today</Text>
           </Pressable>
 
-          {/* CUSTOMERS TAB */}
-          <Pressable 
-            style={styles.navItem} 
-            onPress={() => setCurrentScreen('add_customer')}
-          >
-            <View style={[styles.topIndicator, getTabActiveState('customers') && styles.topIndicatorActive]} />
-            <MaterialIcons 
-              name="people-outline" 
-              size={24} 
-              color={getTabActiveState('customers') ? colors.indigo : colors.muted} 
-            />
-            <Text style={[styles.navText, getTabActiveState('customers') && styles.navTextActive]}>Customers</Text>
+          <Pressable style={styles.navItem} onPress={() => transitionTo('add_customer')}>
+            <View style={[styles.topIndicator, (activeTabHighlight === 'add_customer' || activeTabHighlight === 'customer_profile') && styles.topIndicatorActive]} />
+            <MaterialIcons name="people-outline" size={24} color={(activeTabHighlight === 'add_customer' || activeTabHighlight === 'customer_profile') ? colors.indigo : colors.muted} />
+            <Text style={[styles.navText, (activeTabHighlight === 'add_customer' || activeTabHighlight === 'customer_profile') && styles.navTextActive]}>Customers</Text>
           </Pressable>
 
-          {/* ORDERS TAB */}
-          <Pressable 
-            style={styles.navItem} 
-            onPress={() => setCurrentScreen('orders')}
-          >
-            <View style={[styles.topIndicator, getTabActiveState('orders') && styles.topIndicatorActive]} />
-            <MaterialIcons 
-              name="assignment" 
-              size={22} 
-              color={getTabActiveState('orders') ? colors.indigo : colors.muted} 
-            />
-            <Text style={[styles.navText, getTabActiveState('orders') && styles.navTextActive]}>Orders</Text>
+          <Pressable style={styles.navItem} onPress={() => transitionTo('orders')}>
+            <View style={[styles.topIndicator, (activeTabHighlight === 'orders' || activeTabHighlight === 'add_order') && styles.topIndicatorActive]} />
+            <MaterialIcons name="assignment" size={22} color={(activeTabHighlight === 'orders' || activeTabHighlight === 'add_order') ? colors.indigo : colors.muted} />
+            <Text style={[styles.navText, (activeTabHighlight === 'orders' || activeTabHighlight === 'add_order') && styles.navTextActive]}>Orders</Text>
           </Pressable>
 
-          {/* MONEY TAB */}
-          <Pressable 
-            style={styles.navItem} 
-            onPress={() => setCurrentScreen('money')}
-          >
-            <View style={[styles.topIndicator, getTabActiveState('money') && styles.topIndicatorActive]} />
-            <MaterialIcons 
-              name="account-balance-wallet" 
-              size={22} 
-              color={getTabActiveState('money') ? colors.indigo : colors.muted} 
-            />
-            <Text style={[styles.navText, getTabActiveState('money') && styles.navTextActive]}>Money</Text>
+          <Pressable style={styles.navItem} onPress={() => transitionTo('money')}>
+            <View style={[styles.topIndicator, activeTabHighlight === 'money' && styles.topIndicatorActive]} />
+            <MaterialIcons name="account-balance-wallet" size={22} color={activeTabHighlight === 'money' ? colors.indigo : colors.muted} />
+            <Text style={[styles.navText, activeTabHighlight === 'money' && styles.navTextActive]}>Money</Text>
           </Pressable>
 
         </View>
@@ -165,32 +174,24 @@ export default function App() {
   return <AppContent />;
 }
 
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.cream,
   },
   navBar: {
-    // Pin the bar tightly to the very bottom edge of the display screen layout context
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    
-    // Total physical size wrapper mapping metrics container
-    height: Platform.OS === 'android' ? 92 : 76, 
+    height: Platform.OS === 'android' ? 104 : 84, 
     backgroundColor: colors.white,
-    
     borderTopWidth: 1,
     borderTopColor: colors.line,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    
-    // FIXED: Instead of margins, we use padding to push the icons up.
-    // This keeps the white background extending all the way down behind the phone's navigation keys!
-    paddingBottom: Platform.OS === 'android' ? 36 : 12,
+    paddingBottom: Platform.OS === 'android' ? 36 : 16,
   },
   navItem: {
     flex: 1,
@@ -215,11 +216,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.muted,
     marginTop: 2,
-    paddingBottom: 2,
   },
   navTextActive: {
     color: colors.indigo,
     fontWeight: '600',
   },
 });
-

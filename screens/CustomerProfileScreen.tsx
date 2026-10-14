@@ -82,16 +82,13 @@ export default function CustomerProfileScreen({ id, onBack, onChanged, onOpenCha
           <View style={styles.actions}>
             <Pressable style={[styles.actionButton, { flex: 1.2 }]} onPress={onOpenChat}>
               <MaterialIcons name="forum" size={18} color={colors.indigo} />
-              <Text style={styles.actionText}>Message Feed</Text>
+              <Text style={styles.actionText}>Message</Text>
             </Pressable>
             
             <Pressable style={styles.actionButton} onPress={call}>
               <MaterialIcons name="call" size={18} color={colors.muted} />
             </Pressable>
             
-            <Pressable style={styles.actionButton} onPress={message}>
-              <MaterialIcons name="open-in-new" size={18} color="#10B981" />
-            </Pressable>
           </View>
         ) : null}
 

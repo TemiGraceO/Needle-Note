@@ -2,6 +2,8 @@ import React, { useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text, Pressable, Platform, ScrollView, Dimensions, Animated } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { setupDatabase } from './lib/db';
+
 
 // --- THEME & CORES ---
 import { colors } from './theme/colors';
@@ -26,7 +28,7 @@ type NestedScreen = 'add_customer' | 'add_order' | 'customer_profile' | 'chat_lo
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const INDICATOR_WIDTH = SCREEN_WIDTH / 4; 
 const LINE_WIDTH = INDICATOR_WIDTH * 0.7; // The dynamic top accent indicator line width
-
+setupDatabase();
 export default function App() {
   const [activeTab, setActiveTab] = useState<MainTab>('today');
   const [nestedScreen, setNestedScreen] = useState<NestedScreen | null>(null);

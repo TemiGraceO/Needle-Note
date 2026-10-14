@@ -69,7 +69,7 @@ export default function AddCustomerScreen({ onBack, onSaved }: Props) {
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="e.g. Amaka Obi"
+            placeholder=""
             placeholderTextColor={colors.muted}
             autoCapitalize="words"
           />
@@ -79,7 +79,7 @@ export default function AddCustomerScreen({ onBack, onSaved }: Props) {
             style={styles.input}
             value={phone}
             onChangeText={setPhone}
-            placeholder="e.g. 0803 000 0000"
+            placeholder=""
             placeholderTextColor={colors.muted}
             keyboardType="phone-pad"
           />
@@ -89,7 +89,7 @@ export default function AddCustomerScreen({ onBack, onSaved }: Props) {
             style={[styles.input, styles.multiline]}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Preferences, fit notes, anything to remember"
+            placeholder=""
             placeholderTextColor={colors.muted}
             multiline
             textAlignVertical="top"

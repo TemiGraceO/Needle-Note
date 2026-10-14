@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
-// --- THEME ---
+
 import { colors } from '../theme/colors';
 
 const palette = {

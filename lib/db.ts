@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-
+import { Alert } from 'react-native';
 // Open or instantiate the local device database file storage context
 export const db = SQLite.openDatabaseSync('app.db');
 

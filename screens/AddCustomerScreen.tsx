@@ -64,7 +64,7 @@ export default function AddCustomerScreen({ onBack, onSaved }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-          <Text style={styles.label}>Name *</Text>
+          <Text style={styles.label}>Name</Text>
           <TextInput
             style={styles.input}
             value={name}

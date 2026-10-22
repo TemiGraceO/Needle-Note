@@ -98,7 +98,7 @@ export default function AddOrderScreen({ onBack, onSaved }: AddOrderScreenProps)
       </View>
 
       <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
-        <Text style={styles.inputLabel}>Link Customer</Text>
+        <Text style={[styles.inputLabel, { marginTop: -10 }]}>Link Customer</Text>
         {customers.length === 0 ? (
           <Text style={styles.errorText}>No customers found. Create a customer first!</Text>
         ) : (
@@ -123,7 +123,6 @@ export default function AddOrderScreen({ onBack, onSaved }: AddOrderScreenProps)
         <Text style={styles.inputLabel}>Style Description</Text>
         <TextInput
           style={[styles.textInput, styles.textArea]}
-          placeholder="e.g., Agbada set with embroidery, Two piece dress"
           placeholderTextColor={colors.muted}
           multiline
           value={description}
@@ -145,8 +144,6 @@ export default function AddOrderScreen({ onBack, onSaved }: AddOrderScreenProps)
         <Text style={styles.inputLabel}>Collection Due Date</Text>
         <TextInput
           style={styles.textInput}
-          placeholder="e.g., 28th October"
-          placeholderTextColor={colors.muted}
           value={dueDate}
           onChangeText={setDueDate}
         />
@@ -154,8 +151,6 @@ export default function AddOrderScreen({ onBack, onSaved }: AddOrderScreenProps)
         <Text style={styles.inputLabel}>Total Bill Amount (₦)</Text>
         <TextInput
           style={styles.textInput}
-          placeholder="50,000"
-          placeholderTextColor={colors.muted}
           keyboardType="numeric"
           value={amount}
           onChangeText={setAmount}
